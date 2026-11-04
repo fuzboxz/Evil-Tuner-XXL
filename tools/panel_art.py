@@ -483,9 +483,6 @@ def placed(dkey, name, index, rect, focus_on=True, views=None, view_index=None, 
     if views:   # shown only while the view is one of these (MPC's IndexedEnabling)
         c["bounds"]["additionalInvalidatingHandles"] += ["IndexedEnabling/%d/%d/Parameter %d" % (v, VIEW_COUNT, view_index)
                                                           for v in views]
-    if engine_idx is not None:   # BEADS-unmapped knobs: visible only while ENGINE is XXL or CLOUDS
-        c["bounds"]["additionalInvalidatingHandles"] += ["IndexedEnabling/%d/3/Parameter %d" % (v, engine_idx)
-                                                          for v in (0, 1)]
     return c
 
 
@@ -556,12 +553,17 @@ def build_page(sk, tab, preview=None):
     vcol = "f29a2e" if classic else "e4e4e0"
     shown = bg.copy() if preview is not None else None
 
-    # knobs that have no Beads counterpart: hidden from the page while ENGINE is BEADS (2)
-    BEADS_UNMAPPED = {"spread", "cl_mode", "grain_sync"}
+    # knobs with no Beads counterpart: while ENGINE is BEADS they are covered by a patch of the
+    # page background (drawn ON TOP: hides the knob AND its background; the image also blocks
+    # touches). Single-entry IndexedEnabling on the ENGINE param -- the same proven pattern the
+    # page views use. (Multi-entry lists are ANDed by MPC and hide a component always.)
+    BEADS_UNMAPPED = {"spread", "cl_mode", "grain_sync", "scale"}
+    covers = []
 
     def place(dkey, key, rect, views=None, focus_on=True):
-        eidx = sk.index.get("engine") if key in BEADS_UNMAPPED else None
-        kids.append(placed(dkey, key, sk.index[key], rect, focus_on, views, view_i, engine_idx=eidx))
+        kids.append(placed(dkey, key, sk.index[key], rect, focus_on, views, view_i))
+        if key in BEADS_UNMAPPED:
+            covers.append(rect)
 
     # ---- knobs: a filmstrip and MPC's value text under it
     for t, key, cx, cy, s, look in P.KNOBS:
@@ -696,6 +698,18 @@ def build_page(sk, tab, preview=None):
         if shown is not None:
             ImageDraw.Draw(shown).text((x + w / 2, y + h / 2), preview.get("readout", (0, "", 0))[1],
                                        font=ImageFont.truetype(TITILLIUM_B, 34), fill=AMBER + (255,), anchor="mm")
+    # the BEADS covers: last (topmost) kids -- a patch of the page background over each
+    # unmapped knob, visible only while ENGINE is BEADS (single-entry IndexedEnabling,
+    # the pattern the page views use; multi-entry lists are ANDed and hide always).
+    e_idx = sk.index.get("engine")
+    for i, rect in enumerate(covers):
+        x, y, w, h = rect
+        patch = bg.crop((x, y, x + w, y + h))
+        name = sk.save(patch, "et_%d_beadscover_%d.png" % (tab, i))
+        kid = sub("Cover", "Image", {"version": 2, "imageType": "Regular", "colour": "0", "image": name},
+                  bounds_s(x, y, w, h))
+        kid["bounds"]["additionalInvalidatingHandles"] = ["IndexedEnabling/2/3/Parameter %d" % e_idx]
+        kids.append(kid)
     return bg, kids, shown
 
 

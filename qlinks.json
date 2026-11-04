@@ -56,106 +56,106 @@
      "n": 2,
      "qlinkPage": 1,
      "knob": 2,
-     "key": "cl_mode",
-     "name": "CLOUDS MODE"
+     "key": "pos",
+     "name": "POSITION"
     },
     {
      "n": 3,
      "qlinkPage": 1,
      "knob": 3,
-     "key": "pos",
-     "name": "POSITION"
+     "key": "size",
+     "name": "SIZE"
     },
     {
      "n": 4,
      "qlinkPage": 1,
      "knob": 4,
-     "key": "size",
-     "name": "SIZE"
+     "key": "pitch",
+     "name": "PITCH"
     },
     {
      "n": 5,
      "qlinkPage": 1,
      "knob": 5,
-     "key": "pitch",
-     "name": "PITCH"
+     "key": "grains",
+     "name": "GRAINS"
     },
     {
      "n": 6,
      "qlinkPage": 1,
      "knob": 6,
-     "key": "scale",
-     "name": "SCALE"
+     "key": "cloud",
+     "name": "CLOUD"
     },
     {
      "n": 7,
      "qlinkPage": 1,
      "knob": 7,
-     "key": "grains",
-     "name": "GRAINS"
+     "key": "detune",
+     "name": "DETUNE"
     },
     {
      "n": 8,
      "qlinkPage": 1,
      "knob": 8,
-     "key": "grain_sync",
-     "name": "GRAIN SYNC"
+     "key": "shape",
+     "name": "SHAPE"
     },
     {
      "n": 9,
      "qlinkPage": 1,
      "knob": 9,
-     "key": "spread",
-     "name": "SPREAD"
+     "key": "cutoff",
+     "name": "CUTOFF"
     },
     {
      "n": 10,
      "qlinkPage": 1,
      "knob": 10,
-     "key": "cloud",
-     "name": "CLOUD"
+     "key": "reso",
+     "name": "RESONANCE"
     },
     {
      "n": 11,
      "qlinkPage": 1,
      "knob": 11,
-     "key": "detune",
-     "name": "DETUNE"
+     "key": "mix",
+     "name": "GRAIN MIX"
     },
     {
      "n": 12,
      "qlinkPage": 1,
      "knob": 12,
-     "key": "shape",
-     "name": "SHAPE"
+     "key": "volume",
+     "name": "VOLUME"
     },
     {
      "n": 13,
      "qlinkPage": 1,
      "knob": 13,
-     "key": "cutoff",
-     "name": "CUTOFF"
+     "key": "spread",
+     "name": "SPREAD"
     },
     {
      "n": 14,
      "qlinkPage": 1,
      "knob": 14,
-     "key": "reso",
-     "name": "RESONANCE"
+     "key": "cl_mode",
+     "name": "CLOUDS MODE"
     },
     {
      "n": 15,
      "qlinkPage": 1,
      "knob": 15,
-     "key": "mix",
-     "name": "GRAIN MIX"
+     "key": "grain_sync",
+     "name": "GRAIN SYNC"
     },
     {
      "n": 16,
      "qlinkPage": 1,
      "knob": 16,
-     "key": "volume",
-     "name": "VOLUME"
+     "key": "scale",
+     "name": "SCALE"
     }
    ]
   },

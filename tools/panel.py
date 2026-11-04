@@ -97,8 +97,8 @@ key_row(T, [("freeze", "FREEZE"), ("keys", "KEYS"), ("ft_lp", "LP"), ("ft_hp", "
 # shape is the proven one). Priority per the framework's guidance: main knobs and levels first,
 # enums last. PET drops flt_env/osc_lvl; MOD drops the three LFO wave selectors -- they stay on
 # screen and touchable, just without a dedicated Q-Link knob.
-QLINKS[T] = [["engine", "cl_mode", "pos", "size", "pitch", "scale", "grains", "grain_sync",
-              "spread", "cloud", "detune", "shape", "cutoff", "reso", "mix", "volume"]]
+QLINKS[T] = [["engine", "pos", "size", "pitch", "grains", "cloud", "detune", "shape",
+              "cutoff", "reso", "mix", "volume", "spread", "cl_mode", "grain_sync", "scale"]]
 
 # ------------------------------------------------------------------------------------------------ FX (modern)
 T = 2
