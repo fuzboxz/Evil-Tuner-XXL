@@ -220,11 +220,12 @@ Three grain engines, picked with **ENGINE** (XXL GRAINS, CLOUDS, BEADS):
 - **CLOUDS**: Mutable Instruments Clouds with the Parasites firmware (the engine RMXXXL uses), in six modes picked with
   **CLOUDS MODE**: GRANULAR, STRETCH, LOOPING DELAY, SPECTRAL, OLIVERB, RESONESTOR. KEYS plays it one note at a time
   (the last pad pressed sets the pitch and fires a grain); the oscillator layer still plays chords.
-- **BEADS**: Mutable Instruments Beads (vendored from pichenettes/eurorack) in its fixed digital-media setting. The knobs
-  become the module's pots: POSITION reads TIME, GRAINS reads DENSITY, CLOUD reads REVERB (the reverb amount), DETUNE
-  reads FEEDBACK, GRAIN MIX reads BEADS MIX (dry/wet); SIZE, PITCH and SHAPE keep their jobs (SCALE snaps PITCH, KEYS
-  transposes). SPREAD becomes Beads' time attenuverter: it wobbles the grains' read position around TIME (no stereo
-  scatter). FREEZE works. GRAIN SYNC and CLOUDS MODE do nothing in BEADS.
+- **BEADS**: Mutable Instruments Beads (vendored from pichenettes/eurorack) in its fixed digital-media setting, as
+  faithful to the module as the page allows. The exact controls: POSITION is TIME, SIZE is SIZE, SHAPE is SHAPE, PITCH
+  is PITCH -- turning through the module's own musical steps (0, 1, 3, 4, 7, 12, 24 semitones and their negatives;
+  KEYS transposes continuously) -- and GRAINS is DENSITY; FREEZE freezes. CLOUD carries FEEDBACK and DETUNE carries
+  REVERB wet (the same slots as in CLOUDS), GRAIN MIX is BEADS MIX (dry/wet). SPREAD, CLOUDS MODE and GRAIN SYNC have
+  no Beads counterpart: they are hidden from the page while BEADS is selected and do nothing.
 
 The knobs' names follow the engine and the mode: in CLOUDS GRANULAR, GRAINS reads DENSITY, SHAPE TEXTURE, CLOUD
 FEEDBACK, DETUNE CLOUD VERB; in LOOPING DELAY, POSITION reads DELAY TIME and SIZE LOOP SIZE, and so on. The screen always

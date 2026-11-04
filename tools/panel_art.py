@@ -472,7 +472,7 @@ def name_label(x, y, w, h, px, colour):
                                  "type": "Name", "handleName": "Data"}, bounds_s(x, y, w, h))
 
 
-def placed(dkey, name, index, rect, focus_on=True, views=None, view_index=None):
+def placed(dkey, name, index, rect, focus_on=True, views=None, view_index=None, engine_idx=None):
     x, y, w, h = rect
     c = {"version": 2,
          "componentData": {"version": 1, "name": name, "type": dkey, "data": {"version": 1, "handleName": "Data"}},
@@ -481,8 +481,11 @@ def placed(dkey, name, index, rect, focus_on=True, views=None, view_index=None):
                     "whenVisible": "Always", "boundsType": "Absolute", "bounds": bounds_s(x, y, w, h),
                     "additionalInvalidatingHandles": []}}
     if views:   # shown only while the view is one of these (MPC's IndexedEnabling)
-        c["bounds"]["additionalInvalidatingHandles"] = ["IndexedEnabling/%d/%d/Parameter %d" % (v, VIEW_COUNT, view_index)
-                                                        for v in views]
+        c["bounds"]["additionalInvalidatingHandles"] += ["IndexedEnabling/%d/%d/Parameter %d" % (v, VIEW_COUNT, view_index)
+                                                          for v in views]
+    if engine_idx is not None:   # BEADS-unmapped knobs: visible only while ENGINE is XXL or CLOUDS
+        c["bounds"]["additionalInvalidatingHandles"] += ["IndexedEnabling/%d/3/Parameter %d" % (v, engine_idx)
+                                                          for v in (0, 1)]
     return c
 
 
@@ -553,8 +556,12 @@ def build_page(sk, tab, preview=None):
     vcol = "f29a2e" if classic else "e4e4e0"
     shown = bg.copy() if preview is not None else None
 
+    # knobs that have no Beads counterpart: hidden from the page while ENGINE is BEADS (2)
+    BEADS_UNMAPPED = {"spread", "cl_mode", "grain_sync"}
+
     def place(dkey, key, rect, views=None, focus_on=True):
-        kids.append(placed(dkey, key, sk.index[key], rect, focus_on, views, view_i))
+        eidx = sk.index.get("engine") if key in BEADS_UNMAPPED else None
+        kids.append(placed(dkey, key, sk.index[key], rect, focus_on, views, view_i, engine_idx=eidx))
 
     # ---- knobs: a filmstrip and MPC's value text under it
     for t, key, cx, cy, s, look in P.KNOBS:

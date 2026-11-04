@@ -974,16 +974,35 @@ void clouds_block(Inst* s, const float* L, const float* R, float* wl, float* wr,
 
 // the wet signal of Beads for this block into wl / wr (the BEADS engine). kenv: the keys' envelope (1 without KEYS).
 // The media is fixed MEDIA_DIGITAL stereo (set by Processor::Init): ratio 1, so a block of any size is fine.
-void beads_block(Inst* s, const float* L, const float* R, float* wl, float* wr, int n, int scale, float kenv) {
+// Beads' PITCH pot law (cv_reader.h LAW_DETUNE): the raw 0..1 knob snaps to musical intervals
+// -- 0, +/-1, +/-3, +/-4, +/-7, +/-12, +/-24 semitones, crossfaded between adjacent steps -- so the
+// module's pitch turns in musical steps, not continuously. Faithful port of that curve.
+static float beads_pitch_law(float v) {
+  float detune = 2.0f * clampf(v, 0.f, 1.f) - 1.0f;
+  float sign = detune < 0.0f ? -1.0f : 1.0f;
+  detune = detune * sign * 6.0f;
+  int di = (int)detune;
+  float df = detune - di;
+  static const float intervals[8] = {0.0f, 1.0f, 3.0f, 4.0f, 7.0f, 12.0f, 24.0f, 24.0f};
+  df = std::max((df - 0.33333333f) * 1.5f, 0.0f);
+  float x = df * df * (3.0f - 2.0f * df);   // SmoothStep
+  return (intervals[di] + (intervals[di + 1] - intervals[di]) * x) * sign;
+}
+
+void beads_block(Inst* s, const float* L, const float* R, float* wl, float* wr, int n, float kenv) {
   beads::Processor& g = *s->bd;
   beads::Parameters p;
-  int semis = pitch_semis(E(s, P_PITCH), scale) + (s->keys_mode && s->last_note >= 0 ? s->last_note - 60 : 0);
+  // ET-knob -> Beads, as faithful to the module as the PET page allows (owner direction):
+  // exact 1:1 for TIME/SIZE/SHAPE/PITCH/DENSITY (+ FREEZE, KEYS transposes); CLOUD carries
+  // FEEDBACK and DETUNE carries REVERB wet (the CLOUDS precedent in this plugin). SPREAD,
+  // CLOUDS MODE and GRAIN SYNC have no Beads counterpart: unmapped (hidden on the page while
+  // BEADS is selected -- panel_art gates them on ENGINE).
+  int semis = (int)beads_pitch_law(E(s, P_PITCH)) + (s->keys_mode && s->last_note >= 0 ? s->last_note - 60 : 0);
   p.time.base = clampf(E(s, P_POS), 0.f, 1.f);
-  p.time.attenuverter = clampf(E(s, P_SPREAD), 0.f, 1.f);   // SPREAD is Beads' time attenuverter (no randomness)
   p.size.base = clampf(E(s, P_SIZE), 0.f, 1.f);
   p.shape.base = clampf(E(s, P_SHAPE), 0.f, 1.f);
   p.pitch.base = clampf((float)semis, -48.f, 48.f);
-  p.size.attenuverter = p.shape.attenuverter = p.pitch.attenuverter = 0.f;
+  p.time.attenuverter = p.size.attenuverter = p.shape.attenuverter = p.pitch.attenuverter = 0.f;
   p.time.cv = p.size.cv = p.shape.cv = p.pitch.cv = 0.f;
   p.time.has_cv = p.size.has_cv = p.shape.has_cv = p.pitch.has_cv = false;
   p.monophonic_mode = false;
@@ -991,9 +1010,9 @@ void beads_block(Inst* s, const float* L, const float* R, float* wl, float* wr, 
   density.base = clampf(E(s, P_GRAINS), 0.f, 1.f);
   density.cv = 0.f;
   beads::Processor::MixParameters mixp;
-  mixp.feedback = clampf(E(s, P_DETUNE), 0.f, 1.f);
+  mixp.feedback = clampf(E(s, P_CLOUD), 0.f, 1.f);       // CLOUDS precedent: CLOUD = feedback
   mixp.dry_wet = clampf(E(s, P_MIX), 0.f, 1.f);
-  mixp.reverb_amount = clampf(E(s, P_CLOUD), 0.f, 1.f);
+  mixp.reverb_amount = clampf(E(s, P_DETUNE), 0.f, 1.f); // CLOUDS precedent: DETUNE = reverb wet
   mixp.output_gate = false;
   bool freeze[kBlock];
   stmlib::GateFlags seed[kBlock];
@@ -1113,7 +1132,7 @@ void render_block(Inst* s, float* L, float* R, int n) {
   }
   if (run_cl) clouds_block(s, L, R, cw[0], cw[1], n, scale, sync ? kSyncBeats[sync] : 0.0, beat0, bpf,
                            s->keys_mode ? envmax : 1.f);
-  if (run_bd) beads_block(s, L, R, bw[0], bw[1], n, scale, s->keys_mode ? envmax : 1.f);
+  if (run_bd) beads_block(s, L, R, bw[0], bw[1], n, s->keys_mode ? envmax : 1.f);
   for (int i = 0; i < n; ++i) {
     s->cl_mix += engine == 1 ? step : -step;
     s->bd_mix += engine == 2 ? step : -step;
