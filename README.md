@@ -213,17 +213,23 @@ everything works as at home.
 
 ![PET](docs/img/PET.png)
 
-Two grain engines, picked with **ENGINE**:
+Three grain engines, picked with **ENGINE** (XXL GRAINS, CLOUDS, BEADS):
 
 - **XXL GRAINS**: Evil Tuner's own. It reads a buffer that always holds the last **8 seconds** of the source (or a
   frozen picture of it). KEYS plays it with eight voices.
 - **CLOUDS**: Mutable Instruments Clouds with the Parasites firmware (the engine RMXXXL uses), in six modes picked with
   **CLOUDS MODE**: GRANULAR, STRETCH, LOOPING DELAY, SPECTRAL, OLIVERB, RESONESTOR. KEYS plays it one note at a time
   (the last pad pressed sets the pitch and fires a grain); the oscillator layer still plays chords.
+- **BEADS**: Mutable Instruments Beads (vendored from pichenettes/eurorack) in its fixed digital-media setting. The knobs
+  become the module's pots: POSITION reads TIME, GRAINS reads DENSITY, CLOUD reads REVERB (the reverb amount), DETUNE
+  reads FEEDBACK, GRAIN MIX reads BEADS MIX (dry/wet); SIZE, PITCH and SHAPE keep their jobs (SCALE snaps PITCH, KEYS
+  transposes). SPREAD becomes Beads' time attenuverter: it wobbles the grains' read position around TIME (no stereo
+  scatter). FREEZE works. GRAIN SYNC and CLOUDS MODE do nothing in BEADS.
 
 The knobs' names follow the engine and the mode: in CLOUDS GRANULAR, GRAINS reads DENSITY, SHAPE TEXTURE, CLOUD
 FEEDBACK, DETUNE CLOUD VERB; in LOOPING DELAY, POSITION reads DELAY TIME and SIZE LOOP SIZE, and so on. The screen always
-says what a knob does. The engines are off until **GRAIN MIX** (CLOUDS MIX) is turned up.
+says what a knob does. The engines are off until **GRAIN MIX** (CLOUDS MIX, BEADS MIX) is turned up. Switching engines
+crossfades (about 10 ms), so a change doesn't click.
 
 **SCALE** (CHROMATIC, MAJOR, MINOR, DORIAN, PENTATONIC, MINOR PENTA, 5THS + OCT, OCTAVES) keeps PITCH on the scale's notes,
 and CLOUD's scattered grains jump to the scale's intervals instead of only octaves. **GRAIN SYNC** (FREE, 1/4 .. 1/32,
@@ -248,7 +254,7 @@ triplets) puts the grains on the beat grid at the MPC's tempo; GRAINS then sets 
 | Key | |
 |---|---|
 | **FREEZE** | stops the buffer: the grains play the last 8 s over and over while the radio goes on |
-| **KEYS** | the pads / a keyboard play the grains (XXL GRAINS: eight voices; CLOUDS: the last note; C3 = no transposition, with the MOD page's envelope); off, the grains run on their own (a drone) |
+| **KEYS** | the pads / a keyboard play the grains (XXL GRAINS: eight voices; CLOUDS and BEADS: the last note; C3 = no transposition, with the MOD page's envelope); off, the grains run on their own (a drone) |
 | **LP HP BP COMB DUAL** | the filter. COMB: a resonant comb tuned by CUTOFF (metallic, pitched). DUAL: one knob DJ filter, open in the middle, low-pass to the left, high-pass to the right |
 | **OSC** | the oscillator's wave: sine, triangle, saw, square (lit while OSC LEVEL is up) |
 | **RANDOM** | new grain and filter settings (not GRAIN MIX or VOLUME), like the Evil Pet's random button |
@@ -479,6 +485,8 @@ sender, the AirPlay receiver's Apple-Response checked the way an Apple device ch
   Claude.
 - Concept inspired by the **Endorphin.es Evil Pet**; no affiliation, no code.
 - **Clouds** (Emilie Gillet, Mutable Instruments) with the **Parasites** firmware (Matthias Puech), MIT, as RMXXXL vendors it.
+- **Beads** (Emilie Gillet, Mutable Instruments), MIT, vendored in `third_party/beads` (from
+  [pichenettes/eurorack](https://github.com/pichenettes/eurorack)).
 - **Loop Saboteur** output stages (`OutputStage.h`) by Stephen McLeod Blythe / clickysteve, GPL-3.0; the drive shapes after
   **The Good Bits** (clickysteve, MIT).
 - **Dragonfly Reverb** (Plate, Room) by Michael Willis and contributors, GPL-3.0, with freeverb3 (GPL).

@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+Built and tested offline only: the host suite (test/run_tests.sh) passes with a BEADS scenario and the build gates are
+green. Not validated on a device yet.
+
+- PET: a third grain engine, BEADS (Mutable Instruments Beads, MIT), beside XXL GRAINS and CLOUDS on **ENGINE**. The knobs
+  take the module's pot names: POSITION reads TIME, GRAINS reads DENSITY, CLOUD reads REVERB (the reverb amount), DETUNE
+  reads FEEDBACK and GRAIN MIX reads BEADS MIX (dry/wet); SIZE, PITCH and SHAPE keep their jobs (SCALE snaps PITCH, KEYS
+  transposes). SPREAD becomes Beads' time attenuverter: it wobbles the grains' read position around TIME (no stereo
+  scatter). FREEZE works. GRAIN SYNC and CLOUDS MODE have no effect in BEADS, and the media quality is fixed at the
+  module's digital setting.
+- PET: switching engines crossfades each engine in and out (about 10 ms). XXL GRAINS and CLOUDS themselves are unchanged.
+
 ## 0.2.0
 
 Tested on an Akai Force (MPC OS 3.9.1).
