@@ -33,6 +33,9 @@
 
 #include "beads/stmlib/stmlib.h"
 
+// local: the printf below needs <cstdio>; upstream relies on a transitive include
+#include <cstdio>
+
 #include "beads/dsp/granular_player.h"
 #include "beads/dsp/wavetable_grain.h"
 #include "beads/dsp/wavetable_voice.h"

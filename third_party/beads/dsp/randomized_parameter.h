@@ -31,6 +31,7 @@
 
 #include "beads/stmlib/stmlib.h"
 
+// local: SmoothStep (below) is declared here; upstream relies on a transitive include
 #include "beads/stmlib/dsp/dsp.h"
 #include "beads/stmlib/dsp/units.h"
 #include "beads/stmlib/utils/random.h"
