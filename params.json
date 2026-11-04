@@ -2053,7 +2053,9 @@
     "SPECTRAL",
     "OLIVERB",
     "RESONESTOR"
-   ]
+   ],
+   "dynamic_display": true,
+   "dynamic_name": true
   },
   {
    "key": "scale",
@@ -2068,7 +2070,9 @@
     "MINOR PENTA",
     "5THS + OCT",
     "OCTAVES"
-   ]
+   ],
+   "dynamic_display": true,
+   "dynamic_name": true
   },
   {
    "key": "grain_sync",
@@ -2082,7 +2086,9 @@
     "1/32",
     "1/8T",
     "1/16T"
-   ]
+   ],
+   "dynamic_display": true,
+   "dynamic_name": true
   },
   {
    "key": "send",

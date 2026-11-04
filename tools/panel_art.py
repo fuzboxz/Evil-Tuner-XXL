@@ -561,12 +561,17 @@ def build_page(sk, tab, preview=None):
     # since they carry the module's four AMOUNT pots (randomization: engine.cc) they are
     # live -- nothing to cover. Keep the mechanism for a future unmapped knob.
     BEADS_UNMAPPED = set()
-    covers = []
+    # CLOUDS MODE is a CLOUDS-engine setting (and BEADS' MEDIA): in XXL it does nothing --
+    # covered there (engine 0), with the owner-sized 7 px pad of the old cover set
+    XXL_UNMAPPED = {"cl_mode"}
+    covers = []          # (rect, engine value the cover shows in)
 
     def place(dkey, key, rect, views=None, focus_on=True):
         kids.append(placed(dkey, key, sk.index[key], rect, focus_on, views, view_i))
         if key in BEADS_UNMAPPED:
-            covers.append(rect)
+            covers.append((rect, 2))
+        if key in XXL_UNMAPPED:
+            covers.append((rect, 0))
 
     # ---- knobs: a filmstrip and MPC's value text under it
     for t, key, cx, cy, s, look in P.KNOBS:
@@ -709,8 +714,8 @@ def build_page(sk, tab, preview=None):
     # would reproduce it. Padded well past the knob component so the arc is swallowed too.
     e_idx = sk.index.get("engine")
     PANEL = (27, 27, 27)   # the section panels' recess fill (modern_bg) -- the lighter gray behind the knobs
-    for i, rect in enumerate(covers):
-        PAD = 7 if i == 0 else 13   # first cover (CLOUDS MODE) 7 px, the rest 13 (owner sizing)
+    for i, (rect, eng) in enumerate(covers):
+        PAD = 7   # the owner-sized pad of the old cover set (just past the tick arc's 13 px reach)
         x, y, w, h = rect
         x0, y0 = max(0, x - PAD), max(0, y - PAD)
         x1, y1 = min(P.W, x + w + PAD), min(P.H, y + h + PAD)
@@ -718,7 +723,7 @@ def build_page(sk, tab, preview=None):
         name = sk.save(patch, "et_%d_beadscover_%d.png" % (tab, i))
         kid = sub("Cover", "Image", {"version": 2, "imageType": "Regular", "colour": "0", "image": name},
                   bounds_s(x0, y0, x1 - x0, y1 - y0))
-        kid["bounds"]["additionalInvalidatingHandles"] = ["IndexedEnabling/2/3/Parameter %d" % e_idx]
+        kid["bounds"]["additionalInvalidatingHandles"] = ["IndexedEnabling/%d/3/Parameter %d" % (eng, e_idx)]
         kids.append(kid)
     return bg, kids, shown
 

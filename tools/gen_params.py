@@ -139,7 +139,10 @@ KNOBS2 = [("engine", "ENGINE", 0, ENGINES), ("cl_mode", "CLOUDS MODE", 0, CLOUDS
           ("grain_sync", "GRAIN SYNC", 0, GRAIN_SYNC)]
 KEYS2 = [("send", "SEND"), ("rec_out", "REC OUT"), ("save", "SAVE"), ("auto_save", "AUTO SAVE")]
 # the PET knobs whose name follows the engine and Clouds' mode ("<key>_name")
-DYNAMIC_NAMES = ["pos", "size", "pitch", "grains", "spread", "cloud", "detune", "shape", "mix"]
+# cl_mode/grain_sync/scale too: in BEADS they read MEDIA / SHAPE RND / PITCH RND (engine.cc's
+# knob_name + value_text); without the flags the host shows the static CLOUDS option text.
+DYNAMIC_NAMES = ["pos", "size", "pitch", "grains", "spread", "cloud", "detune", "shape", "mix",
+                 "cl_mode", "grain_sync", "scale"]
 
 TEXTS = [("st_name", "STATION"), ("st_title", "NOW PLAYING"), ("st_info", "INFO"), ("page_txt", "PAGE"),
          ("query", "SEARCH TEXT"), ("phone_txt", "PHONE"), ("air_txt", "AIRPLAY"), ("tape_txt", "TAPE"),
@@ -152,6 +155,8 @@ def knob_entry(key, name, d, opts):
     e = {"key": key, "name": name, "default": d, "kind": "KNOB"}
     if opts:
         e["options"] = opts
+        if key in DYNAMIC_NAMES:
+            e["dynamic_display"] = True   # BEADS re-reads these knobs (engine.cc value_text)
     else:
         e.update({"min": 0, "max": 1, "dynamic_display": True})   # value text from the engine ("<key>_display")
     if key in DYNAMIC_NAMES:
