@@ -160,7 +160,8 @@ std::string value_text(const Inst* s, int p) {
   char b[64];
   const ParamDef& d = PARAM_DEFS[p];
   float v = s->v[p];
-  if (d.nopts) return d.opts[(int)lroundf(v)];
+  bool beads_early = opt(s, P_ENGINE) == 2 && (p == P_CL_MODE || p == P_GRAIN_SYNC || p == P_SCALE);
+  if (d.nopts && !beads_early) return d.opts[(int)lroundf(v)];   // option text -- unless BEADS re-reads the knob
   auto pct = [&](float x) { snprintf(b, sizeof b, "%d%%", (int)lroundf(x * 100.f)); return std::string(b); };
   auto ms = [&](float m) {
     if (m >= 1000.f) snprintf(b, sizeof b, "%.2f s", m / 1000.f);
@@ -170,7 +171,8 @@ std::string value_text(const Inst* s, int p) {
   bool clouds = opt(s, P_ENGINE) == 1;
   bool beads = opt(s, P_ENGINE) == 2;
   // BEADS: the three option knobs read as randomization depth in percent, and CLOUDS MODE
-  // as Beads' media (the module's settings-menu flavors; its last two steps are mono)
+  // as Beads' media (the module's settings-menu flavors; its last two steps are mono).
+  // These MUST come before the nopts early-return path above -- the knobs have options.
   if (beads && p == P_CL_MODE) {
     static const char* kMediaName[6] = {"DIGITAL", "VINTAGE", "CLEAN TAPE", "DIRTY TAPE",
                                         "MONO DIGITAL", "MONO DIRTY"};
