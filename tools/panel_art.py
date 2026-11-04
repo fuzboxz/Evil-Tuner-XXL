@@ -706,8 +706,8 @@ def build_page(sk, tab, preview=None):
     # would reproduce it. Padded well past the knob component so the arc is swallowed too.
     e_idx = sk.index.get("engine")
     PANEL = (27, 27, 27)   # the section panels' recess fill (modern_bg) -- the lighter gray behind the knobs
-    PAD = 10
     for i, rect in enumerate(covers):
+        PAD = 8 if i == 0 else 12   # first cover (CLOUDS MODE) 8 px, the rest 12 (owner sizing)
         x, y, w, h = rect
         x0, y0 = max(0, x - PAD), max(0, y - PAD)
         x1, y1 = min(P.W, x + w + PAD), min(P.H, y + h + PAD)
