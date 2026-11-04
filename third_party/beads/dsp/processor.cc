@@ -43,10 +43,12 @@ using namespace stmlib;
 void Processor::Init(
     uint8_t* buffers[],
     uint16_t* reverb_buffer) {
+  // Init's argument is each processor's INTERNAL rate: the ratio-2 tape media run at
+  // half the host rate (the module's 24 kHz tapes), everything else at the host rate.
   processor_digital_.Init(BEADS_INTERNAL_SR, buffers);
-  processor_vintage_digital_.Init(32000.0f, buffers);
-  processor_clean_tape_.Init(24000.0f, buffers);
-  processor_dirty_tape_.Init(24000.0f, buffers);
+  processor_vintage_digital_.Init(BEADS_INTERNAL_SR, buffers);
+  processor_clean_tape_.Init(BEADS_INTERNAL_SR / 2, buffers);
+  processor_dirty_tape_.Init(BEADS_INTERNAL_SR / 2, buffers);
   
   dry_ = 0.0f;
   wet_ = 0.0f;
@@ -56,7 +58,7 @@ void Processor::Init(
   wow_and_flutter_.Init(24000.0f);
   wow_and_flutter_.set_lp(0.95f);
 #else
-  wow_and_flutter_.Init(48000.0f);
+  wow_and_flutter_.Init(BEADS_INTERNAL_SR);
   wow_and_flutter_.set_lp(0.6f);
 #endif  // ENABLE_HARDWARE_24K
 

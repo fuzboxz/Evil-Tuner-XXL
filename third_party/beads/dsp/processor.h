@@ -43,7 +43,11 @@
 // When this flag is not set, the codec is run at 48kHz and the wet signal is
 // downsampled by a 0.5 factor before being processed. Low-pass filtering
 // is also applied to the output signal within the wow and flutter code.
-#define ENABLE_HARDWARE_24K
+// THE PORT: disabled -- there is no codec to slow down. The ratio-2 template
+// instances this selects decimate the tape media internally (dirty/clean run at
+// half the host rate, like the module's 24 kHz tapes) and wow & flutter runs at
+// the host rate.
+// #define ENABLE_HARDWARE_24K
 
 // The port runs this code at the host's rate (44.1 kHz on MPC), not the module's 48 kHz:
 // BEADS_INTERNAL_SR feeds every time constant (Init, sample_rate()) so grain durations,
@@ -87,7 +91,9 @@ class Processor {
 #ifdef ENABLE_HARDWARE_24K
     float sr[4] = { 24000.0f, BEADS_INTERNAL_SR, 32000.0f, BEADS_INTERNAL_SR };
 #else
-    float sr[4] = { BEADS_INTERNAL_SR, BEADS_INTERNAL_SR, 32000.0f, BEADS_INTERNAL_SR };
+    // the port's config (no codec): every media's constants derive from the host rate;
+    // vintage digital runs full-rate 12-bit instead of the module's 32 kHz codec
+    float sr[4] = { BEADS_INTERNAL_SR, BEADS_INTERNAL_SR, BEADS_INTERNAL_SR, BEADS_INTERNAL_SR };
 #endif  // ENABLE_HARDWARE_24K
     return sr[media_];
   }

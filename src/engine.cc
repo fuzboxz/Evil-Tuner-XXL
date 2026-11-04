@@ -138,6 +138,7 @@ struct Inst {
   uint8_t* bd_delay2 = nullptr;       // 256 KB, beads.cc's third bank
   uint16_t* bd_verb = nullptr;        // 32768 words: the reverb's FxEngine<32768> clears all of them on Init
   float bd_mix = 0.f;                 // fades BEADS in / out when the engine changes
+  int bd_cfg = 0;                     // the applied CLOUDS MODE option: BEADS media + mono
   int last_note = -1;                 // KEYS: the note Clouds plays (the last one pressed)
   uint32_t clock = 0;                 // blocks
   uint32_t display_rev = 1;
@@ -165,9 +166,14 @@ std::string value_text(const Inst* s, int p) {
   };
   bool clouds = opt(s, P_ENGINE) == 1;
   bool beads = opt(s, P_ENGINE) == 2;
-  // BEADS: the three option knobs read as randomization depth in percent, not their
-  // XXL/CLOUDS option text (the stepped positions ARE the amount's detents)
-  if (beads && (p == P_CL_MODE || p == P_GRAIN_SYNC || p == P_SCALE))
+  // BEADS: the three option knobs read as randomization depth in percent, and CLOUDS MODE
+  // as Beads' media (the module's settings-menu flavors; its last two steps are mono)
+  if (beads && p == P_CL_MODE) {
+    static const char* kMediaName[6] = {"DIGITAL", "VINTAGE", "CLEAN TAPE", "DIRTY TAPE",
+                                        "MONO DIGITAL", "MONO DIRTY"};
+    return kMediaName[std::min((int)lroundf(v), 5)];
+  }
+  if (beads && (p == P_GRAIN_SYNC || p == P_SCALE))
     return pct(v);
   if ((clouds || beads) && (p == P_POS || p == P_SIZE || p == P_GRAINS || p == P_SHAPE || p == P_SPREAD || p == P_CLOUD || p == P_DETUNE)) {
     if (clouds && p == P_GRAINS && opt(s, P_GRAIN_SYNC) && opt(s, P_CL_MODE) == 0) {
@@ -256,10 +262,10 @@ const char* knob_name(const Inst* s, int p) {
       case P_SHAPE: return "SHAPE";
       case P_GRAINS: return "DENSITY";
       case P_PITCH: return "PITCH";
-      case P_SPREAD: return "TIME RND";      // the module's AMOUNT pots: the four PET
-      case P_CL_MODE: return "SIZE RND";      // slots without a Beads counterpart carry
-      case P_GRAIN_SYNC: return "SHAPE RND";  // Beads' randomization depths
-      case P_SCALE: return "PITCH RND";
+      case P_SPREAD: return "TIME RND";      // three of the four PET slots without a
+      case P_CL_MODE: return "MEDIA";         // Beads counterpart carry the randomization,
+      case P_GRAIN_SYNC: return "SHAPE RND";  // the fourth (CLOUDS MODE) selects Beads'
+      case P_SCALE: return "PITCH RND";       // media: the module's settings-menu flavors
       case P_CLOUD: return "FEEDBACK";
       case P_DETUNE: return "REVERB";
       case P_MIX: return "BEADS MIX";
@@ -1002,22 +1008,27 @@ void beads_block(Inst* s, const float* L, const float* R, float* wl, float* wr, 
   // ET-knob -> Beads, as faithful to the module as the PET page allows (owner direction):
   // exact 1:1 for TIME/SIZE/SHAPE/PITCH/DENSITY (+ FREEZE, KEYS transposes); CLOUD carries
   // FEEDBACK and DETUNE carries REVERB wet (the CLOUDS precedent in this plugin). The four
-  // slots with no Beads counterpart carry the module's four AMOUNT pots -- the randomization
-  // (TIME RND/SIZE RND/SHAPE RND/PITCH RND, see the attenuverters below).
+  // slots with no Beads counterpart carry the randomization (TIME/SHAPE/PITCH RND) and
+  // MEDIA -- Beads' settings-menu flavors (see the attenuverter and Configure blocks below).
   int semis = (int)beads_pitch_law(E(s, P_PITCH)) + (s->keys_mode && s->last_note >= 0 ? s->last_note - 60 : 0);
   p.time.base = clampf(E(s, P_POS), 0.f, 1.f);
   p.size.base = clampf(E(s, P_SIZE), 0.f, 1.f);
   p.shape.base = clampf(E(s, P_SHAPE), 0.f, 1.f);
   p.pitch.base = clampf((float)semis, -48.f, 48.f);
-  // The four PET slots with no Beads counterpart become the module's four AMOUNT pots
-  // (the randomization). attenuverter is exactly what those pots feed: TIME scatters each
-  // grain's read position toward uniform across the buffer, SIZE scatters grain durations
-  // (and widens playback bandwidth -- both, as on the module), SHAPE scatters envelope
-  // shapes (a 0.1 Hz walk in delay mode), PITCH is a +/-24 st random walk on top of the
-  // snapped base. The module's pots are bipolar; these read the knob position (0..1, the
-  // positive half -- the option knobs keep their steps: cl_mode 6, grain_sync 7, scale 8).
+  // The four PET slots without a Beads counterpart carry the module's randomization and
+  // media (owner direction): TIME scatters each grain's read position toward uniform across
+  // the buffer, SHAPE scatters envelope shapes (a 0.1 Hz walk in delay mode), PITCH is a
+  // +/-24 st random walk on top of the snapped base. SIZE's slot (CLOUDS MODE) became MEDIA:
+  // the module's settings-menu flavors, with its last two steps as the mono variants.
+  // Configure() is the module's own media switch (processor Reset + reverb flush).
+  static const beads::Processor::Media kMediaOf[6] = {
+      beads::Processor::MEDIA_DIGITAL, beads::Processor::MEDIA_VINTAGE_DIGITAL,
+      beads::Processor::MEDIA_CLEAN_TAPE, beads::Processor::MEDIA_DIRTY_TAPE,
+      beads::Processor::MEDIA_DIGITAL, beads::Processor::MEDIA_DIRTY_TAPE};
+  int mo = opt(s, P_CL_MODE);
+  if (mo != s->bd_cfg) { s->bd_cfg = mo; g.Configure(kMediaOf[mo], mo >= 4); }
   p.time.attenuverter = clampf(E(s, P_SPREAD), 0.f, 1.f);
-  p.size.attenuverter = clampf(E(s, P_CL_MODE), 0.f, 1.f);
+  p.size.attenuverter = 0.f;
   p.shape.attenuverter = clampf(E(s, P_GRAIN_SYNC), 0.f, 1.f);
   p.pitch.attenuverter = clampf(E(s, P_SCALE), 0.f, 1.f);
   p.time.cv = p.size.cv = p.shape.cv = p.pitch.cv = 0.f;

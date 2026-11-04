@@ -225,10 +225,11 @@ Three grain engines, picked with **ENGINE** (XXL GRAINS, CLOUDS, BEADS):
   is PITCH -- turning through the module's own musical steps (0, 1, 3, 4, 7, 12, 24 semitones and their negatives;
   KEYS transposes continuously) -- and GRAINS is DENSITY; FREEZE freezes. CLOUD carries FEEDBACK and DETUNE carries
   REVERB wet (the same slots as in CLOUDS), GRAIN MIX is the engine-bus blend (Beads' own dry/wet sits at full wet, as patched wet-only). The four slots without a Beads
-  counterpart carry the module's four AMOUNT pots -- the randomization, in BEADS reading TIME RND, SIZE RND, SHAPE RND and PITCH RND (Q-Link bank 4): TIME RND scatters each
-  grain's read position toward uniform across the buffer, SIZE RND scatters grain durations and widens playback bandwidth (both, as on the module), SHAPE RND scatters grain
-  envelope shapes (a 0.1 Hz walk in delay mode), PITCH RND is a +/-24 st random walk on top of the snapped pitch. The module's pots are bipolar; these read the knob position
-  (0..1, the positive half -- SPREAD is smooth, the three option knobs keep their steps as the amount's detents).
+  counterpart carry the randomization and the media (Q-Link bank 4): TIME RND (SPREAD) scatters each grain's read position toward uniform across the buffer, SHAPE RND (GRAIN
+  SYNC) scatters grain envelope shapes (a 0.1 Hz walk in delay mode), PITCH RND (SCALE) is a +/-24 st random walk on top of the snapped pitch (the stepped option knobs keep
+  their steps as the amount's detents), and MEDIA (CLOUDS MODE) selects the module's settings-menu flavors: DIGITAL (the default), VINTAGE DIGITAL (12-bit), CLEAN TAPE and
+  DIRTY TAPE (half-rate tapes with wow & flutter on dirty), plus MONO DIGITAL and MONO DIRTY on the last two steps. Switching media reconfigures the engine (the buffer
+  resets, as on the module).
 
 The knobs' names follow the engine and the mode: in CLOUDS GRANULAR, GRAINS reads DENSITY, SHAPE TEXTURE, CLOUD
 FEEDBACK, DETUNE CLOUD VERB; in LOOPING DELAY, POSITION reads DELAY TIME and SIZE LOOP SIZE, and so on. The screen always
