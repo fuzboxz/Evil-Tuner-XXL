@@ -738,18 +738,19 @@ def main(skin):
         return out
 
     def column_rects(keys, rects):
+        # ALWAYS four entries, positionally: stock skins (DrumSynthMulti on device) give every
+        # Q-Link bank a rect, and RMXXXL proves an empty column as "0 0 0 0" renders as no box.
+        # A short array leaves the later banks with no entry and MPC shows no outline for them.
         cols = []
         for c in range(4):
             boxes = [rects[k] for k in keys[c * 4:c * 4 + 4] if k != "-" and k in rects]
             if not boxes:
-                cols.append(None)
+                cols.append("0 0 0 0")
                 continue
             x0, y0 = max(0, min(b[0] for b in boxes) - 6), max(0, min(b[1] for b in boxes) - 6)
             x1, y1 = min(P.W, max(b[0] + b[2] for b in boxes) + 6), min(P.H, max(b[1] + b[3] for b in boxes) + 6)
             cols.append("%d %d %d %d" % (x0, y0, x1 - x0, y1 - y0))
-        while cols and cols[-1] is None:
-            cols.pop()
-        return [r or "0 0 0 0" for r in cols]
+        return cols
 
     for p in tui["pageData"]["tabs"]:
         ti = p.get("fnKeyIndex")
