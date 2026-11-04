@@ -705,8 +705,8 @@ def build_page(sk, tab, preview=None):
     # tick arc knob_ticks() bakes around every knob position (radius 0.64*s), and a crop
     # would reproduce it. Padded well past the knob component so the arc is swallowed too.
     e_idx = sk.index.get("engine")
-    PANEL = (0x10, 0x10, 0x10)   # theme_panel=101010 (panel.py), the modern pages' matte panel
-    PAD = 36
+    PANEL = (27, 27, 27)   # the section panels' recess fill (modern_bg) -- the lighter gray behind the knobs
+    PAD = 16   # just past the tick arc (it reaches 0.64*s, ~13 px above the knob box)
     for i, rect in enumerate(covers):
         x, y, w, h = rect
         x0, y0 = max(0, x - PAD), max(0, y - PAD)
