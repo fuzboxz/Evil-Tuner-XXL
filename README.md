@@ -224,8 +224,11 @@ Three grain engines, picked with **ENGINE** (XXL GRAINS, CLOUDS, BEADS):
   faithful to the module as the page allows. The exact controls: POSITION is TIME, SIZE is SIZE, SHAPE is SHAPE, PITCH
   is PITCH -- turning through the module's own musical steps (0, 1, 3, 4, 7, 12, 24 semitones and their negatives;
   KEYS transposes continuously) -- and GRAINS is DENSITY; FREEZE freezes. CLOUD carries FEEDBACK and DETUNE carries
-  REVERB wet (the same slots as in CLOUDS), GRAIN MIX is the engine-bus blend (Beads' own dry/wet sits at full wet, as patched wet-only). SPREAD, CLOUDS MODE and GRAIN SYNC have
-  no Beads counterpart: they are covered by a patch of the page background while BEADS is selected and do nothing (the PET Q-Link set keeps them in its last bank).
+  REVERB wet (the same slots as in CLOUDS), GRAIN MIX is the engine-bus blend (Beads' own dry/wet sits at full wet, as patched wet-only). The four slots without a Beads
+  counterpart carry the module's four AMOUNT pots -- the randomization, in BEADS reading TIME RND, SIZE RND, SHAPE RND and PITCH RND (Q-Link bank 4): TIME RND scatters each
+  grain's read position toward uniform across the buffer, SIZE RND scatters grain durations and widens playback bandwidth (both, as on the module), SHAPE RND scatters grain
+  envelope shapes (a 0.1 Hz walk in delay mode), PITCH RND is a +/-24 st random walk on top of the snapped pitch. The module's pots are bipolar; these read the knob position
+  (0..1, the positive half -- SPREAD is smooth, the three option knobs keep their steps as the amount's detents).
 
 The knobs' names follow the engine and the mode: in CLOUDS GRANULAR, GRAINS reads DENSITY, SHAPE TEXTURE, CLOUD
 FEEDBACK, DETUNE CLOUD VERB; in LOOPING DELAY, POSITION reads DELAY TIME and SIZE LOOP SIZE, and so on. The screen always

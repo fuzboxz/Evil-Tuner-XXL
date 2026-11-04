@@ -557,7 +557,10 @@ def build_page(sk, tab, preview=None):
     # page background (drawn ON TOP: hides the knob AND its background; the image also blocks
     # touches). Single-entry IndexedEnabling on the ENGINE param -- the same proven pattern the
     # page views use. (Multi-entry lists are ANDed by MPC and hide a component always.)
-    BEADS_UNMAPPED = {"spread", "cl_mode", "grain_sync", "scale"}
+    # PET knobs without a Beads counterpart used to be covered while BEADS is selected;
+    # since they carry the module's four AMOUNT pots (randomization: engine.cc) they are
+    # live -- nothing to cover. Keep the mechanism for a future unmapped knob.
+    BEADS_UNMAPPED = set()
     covers = []
 
     def place(dkey, key, rect, views=None, focus_on=True):
