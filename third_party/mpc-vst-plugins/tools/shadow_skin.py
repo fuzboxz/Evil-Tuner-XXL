@@ -1309,24 +1309,18 @@ def build(layout_path, params, skin_dir, art_bin, png_from_ppm):
             if len(keys) > 16:
                 raise SystemExit("layout: qlinks %r has %d keys (max 16)" % (title, len(keys)))
             ql = {"Q-Link %d" % (q + 1): -1 for q in range(16)}
-            # ET Gen2 (on-device finding, 2026-11-04): stock skins (DrumSynthMulti on MPC 3.10)
-            # use "Bank Direction": "RowTopDown" with CONSECUTIVE slot numbering -- Q1..Q4 = bank 1
-            # = keys 0..3, Q5..Q8 = bank 2, ... The framework's "Column" + qlink_for_slot numbering
-            # (from MPC One/Force measurements) renders the per-bank qlinkBoundsData inconsistently
-            # on a Live III: only entry 0 is ever drawn. RowTopDown matches stock and outlines every
-            # bank. bounds[i] below then covers exactly bank i+1's keys (same groups of four).
             for s, k in enumerate(keys):
                 if k == "-":
                     continue
                 if k not in index:
                     raise SystemExit("layout: qlinks key %r is not a parameter" % k)
-                ql["Q-Link %d" % (s + 1)] = index[k]
+                ql["Q-Link %d" % qlink_for_slot(s)] = index[k]
             comp = "%s|%s" % (tab["name"], title)
             pages.append({"version": 3, "tabName": title, "fnKeyIndex": t, "fnKeySubIndex": sp,
                           "qlinkBoundsData": qlink_column_bounds(tab, keys, base_dir) if QLINK_COLUMNS else ["0 0 0 0"],
                           "componentName": comp,
                           "initialSize": "0 0 %d %d" % (W, H), "scale": 1.0})
-            qmap.append({"Tab": t + 1, "SubTab": sp + 1, "Bank Direction": "RowTopDown", "Q-Links": ql})
+            qmap.append({"Tab": t + 1, "SubTab": sp + 1, "Bank Direction": "Column", "Q-Links": ql})
             defs[comp] = {"key": comp, "value": {
                 "version": 4, "actions": [],
                 "backgroundData": {"version": 1, "focussed": {"version": 1, "colour": "ff" + PLATE, "image": ""},
