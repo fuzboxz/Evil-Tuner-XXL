@@ -228,8 +228,9 @@ Three grain engines, picked with **ENGINE** (XXL GRAINS, CLOUDS, BEADS):
   counterpart carry the randomization and the media (Q-Link bank 4): TIME RND (SPREAD) scatters each grain's read position toward uniform across the buffer, SHAPE RND (GRAIN
   SYNC) scatters grain envelope shapes (a 0.1 Hz walk in delay mode), PITCH RND (SCALE) is a +/-24 st random walk on top of the snapped pitch (the stepped option knobs keep
   their steps as the amount's detents), and MEDIA (CLOUDS MODE) selects the module's settings-menu flavors: DIGITAL (the default), VINTAGE DIGITAL (12-bit), CLEAN TAPE and
-  DIRTY TAPE (half-rate tapes with wow & flutter on dirty), plus MONO DIGITAL and MONO DIRTY on the last two steps. Switching media reconfigures the engine (the buffer
-  resets, as on the module).
+  DIRTY TAPE (half-rate tapes with wow & flutter on dirty), plus MONO DIGITAL and MONO DIRTY on the last two steps. Switching media reconfigures the engine and the material
+  carries over: the last ~5 s is re-recorded into the new media through its own converters (~0.6 s, silent) -- the encodings differ (16/12/8-bit, the tapes at half rate),
+  so the buffer is rebuilt, not transplanted. Mode crossings (SIZE to max and back) never dropped the buffer in the first place.
 
 The knobs' names follow the engine and the mode: in CLOUDS GRANULAR, GRAINS reads DENSITY, SHAPE TEXTURE, CLOUD
 FEEDBACK, DETUNE CLOUD VERB; in LOOPING DELAY, POSITION reads DELAY TIME and SIZE LOOP SIZE, and so on. The screen always

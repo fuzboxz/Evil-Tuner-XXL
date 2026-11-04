@@ -137,6 +137,9 @@ struct Inst {
   uint8_t* bd_delay1 = nullptr;       // 512 KB, sliced into beads.cc's first two 256 KB banks
   uint8_t* bd_delay2 = nullptr;       // 256 KB, beads.cc's third bank
   uint16_t* bd_verb = nullptr;        // 32768 words: the reverb's FxEngine<32768> clears all of them on Init
+  float (*bd_shadow)[2] = nullptr;    // the last ~5 s fed to Beads -- what its buffer holds (media-switch carry-over)
+  long bd_shadow_w = 0;               // absolute frames recorded into the shadow
+  long bd_replay = -1;                // absolute shadow frame being re-fed; -1 = idle
   float bd_mix = 0.f;                 // fades BEADS in / out when the engine changes
   int bd_cfg = 0;                     // the applied CLOUDS MODE option: BEADS media + mono
   int last_note = -1;                 // KEYS: the note Clouds plays (the last one pressed)
@@ -1026,7 +1029,16 @@ void beads_block(Inst* s, const float* L, const float* R, float* wl, float* wr, 
       beads::Processor::MEDIA_CLEAN_TAPE, beads::Processor::MEDIA_DIRTY_TAPE,
       beads::Processor::MEDIA_DIGITAL, beads::Processor::MEDIA_DIRTY_TAPE};
   int mo = opt(s, P_CL_MODE);
-  if (mo != s->bd_cfg) { s->bd_cfg = mo; g.Configure(kMediaOf[mo], mo >= 4); }
+  if (mo != s->bd_cfg) {
+    s->bd_cfg = mo;
+    g.Configure(kMediaOf[mo], mo >= 4);
+    // carry the material across: the new media's encoding/rate differs (16/12/8-bit, the
+    // tapes at half rate), so the buffer cannot be transplanted -- it is RE-RECORDED. The
+    // shadow ring below holds the last ~5 s of what Beads was fed; replaying it through the
+    // new media's own write path (its SRC filters + encoders) rebuilds the buffer with the
+    // old content, chronology intact, at ~8x real time (~0.6 s).
+    if (s->bd_shadow) s->bd_replay = std::max(0L, s->bd_shadow_w - 5L * ET_SR);
+  }
   p.time.attenuverter = clampf(E(s, P_SPREAD), 0.f, 1.f);
   p.size.attenuverter = 0.f;
   p.shape.attenuverter = clampf(E(s, P_GRAIN_SYNC), 0.f, 1.f);
@@ -1045,6 +1057,25 @@ void beads_block(Inst* s, const float* L, const float* R, float* wl, float* wr, 
   mixp.dry_wet = 1.f;
   mixp.reverb_amount = clampf(E(s, P_DETUNE), 0.f, 1.f); // CLOUDS precedent: DETUNE = reverb wet
   mixp.output_gate = false;
+  if (s->bd_replay >= 0 && s->bd_shadow) {
+    // the re-record pump: feed shadow frames through Process with the trigger paths closed
+    // (seed gate LOW, DENSITY 0, freeze forced off so the writes land); output is discarded.
+    beads::ModulatedParameter zdensity; zdensity.base = 0.f; zdensity.cv = 0.f;
+    static stmlib::GateFlags seed_low[kBlock];
+    static bool nofreeze[kBlock];           // GATE_FLAG_LOW is 0: static zero-init fits both
+    static beads::FloatFrame rin[kBlock], rout[kBlock];
+    int budget = 8 * n;                     // 8x real time until the shadow is drained
+    while (s->bd_replay < s->bd_shadow_w && budget > 0) {
+      int m = std::min(std::min(kBlock, budget), (int)std::min(s->bd_shadow_w - s->bd_replay, 5L * ET_SR));
+      for (int i = 0; i < m; ++i) {
+        long wi = (s->bd_replay + i) % (5L * ET_SR);
+        rin[i].l = s->bd_shadow[wi][0]; rin[i].r = s->bd_shadow[wi][1];
+      }
+      g.Process(beads::SEED_BUTTON_STATE_OFF, seed_low, nofreeze, zdensity, p, mixp, rin, rout, m);
+      s->bd_replay += m; budget -= m;
+    }
+    if (s->bd_replay >= s->bd_shadow_w) s->bd_replay = -1;
+  }
   bool freeze[kBlock];
   stmlib::GateFlags seed[kBlock];
   for (int i = 0; i < n; ++i) {
@@ -1056,7 +1087,14 @@ void beads_block(Inst* s, const float* L, const float* R, float* wl, float* wr, 
     seed[i] = stmlib::GATE_FLAG_HIGH;
   }
   beads::FloatFrame in[kBlock], out[kBlock];
-  for (int i = 0; i < n; ++i) { in[i].l = L[i]; in[i].r = R[i]; }
+  for (int i = 0; i < n; ++i) {
+    in[i].l = L[i]; in[i].r = R[i];
+    if (s->bd_shadow) {   // the shadow records exactly what the engine records
+      long wi = s->bd_shadow_w % (5L * ET_SR);
+      s->bd_shadow[wi][0] = L[i]; s->bd_shadow[wi][1] = R[i];
+      ++s->bd_shadow_w;
+    }
+  }
   g.Process(beads::SEED_BUTTON_STATE_OFF, seed, freeze, density, p, mixp, in, out, n);
   // The module's wet carries a fixed x1.5 post-gain against a x0.75 dry (hot by design inside
   // its own crossfade). ET's dry bypasses Beads at unity, so the 1.5 must come out: wet gain
@@ -1360,6 +1398,7 @@ void* create(const char* dataDir) {
   s->bd_delay1 = static_cast<uint8_t*>(calloc(1, 2 * 256 * 1024));
   s->bd_delay2 = static_cast<uint8_t*>(calloc(1, 256 * 1024));
   s->bd_verb = static_cast<uint16_t*>(calloc(32768, sizeof(uint16_t)));
+  s->bd_shadow = static_cast<float(*)[2]>(calloc(5 * ET_SR, sizeof(float[2])));   // 5 s: the longest single-media buffer
   void* bdm = calloc(1, sizeof(beads::Processor));
   if (bdm && s->bd_delay1 && s->bd_delay2 && s->bd_verb) {
     s->bd = new (bdm) beads::Processor;
@@ -1392,6 +1431,7 @@ void destroy(void* p) {
   free(s->bd_delay1);
   free(s->bd_delay2);
   free(s->bd_verb);
+  free(s->bd_shadow);
   s->tape.free_all();
   s->looper.free_all();
   if (s->rv[0]) kPlateReverb.destroy(s->rv[0]);
