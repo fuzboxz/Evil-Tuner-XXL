@@ -557,40 +557,13 @@ def build_page(sk, tab, preview=None):
     # page background (drawn ON TOP: hides the knob AND its background; the image also blocks
     # touches). Single-entry IndexedEnabling on the ENGINE param -- the same proven pattern the
     # page views use. (Multi-entry lists are ANDed by MPC and hide a component always.)
-    is_pet = P.TABS[tab] == "PET"
-    # PET is the engines' page: every knob exists once per ENGINE as its own placement (a
-    # single-entry IndexedEnabling on ENGINE -- multi-entry lists are ANDed and hide always).
-    # XXL and CLOUDS share the two-row layout (handles 0/1); BEADS (handle 2) shows only its
-    # twelve live knobs, together on the left. A knob with no BEADS placement simply does
-    # not exist in BEADS -- nothing to draw a focus ring around, nothing to cover.
-    BEADS_CLUSTER = {"engine": (80, 88), "pos": (210, 88), "size": (340, 88), "pitch": (470, 88),
-                     "grains": (600, 88), "shape": (730, 88),
-                     "cloud": (145, 300), "detune": (275, 300), "cutoff": (405, 300),
-                     "reso": (535, 300), "mix": (665, 300), "volume": (795, 300)}
+    BEADS_UNMAPPED = {"spread", "cl_mode", "grain_sync", "scale"}
+    covers = []
 
     def place(dkey, key, rect, views=None, focus_on=True):
         kids.append(placed(dkey, key, sk.index[key], rect, focus_on, views, view_i))
-
-    def place_knob(dkey, key, rect, focus_on=True):
-        if not (is_pet and sk.index.get("engine") is not None):
-            place(dkey, key, rect, focus_on=focus_on)
-            return
-        e = sk.index["engine"]
-        for v in (0, 1):   # XXL and CLOUDS share the layout; each gets its own single-entry handle
-            kid = placed(dkey, key, sk.index[key], rect, focus_on)
-            kid["bounds"]["additionalInvalidatingHandles"] = ["IndexedEnabling/%d/3/Parameter %d" % (v, e)]
-            kids.append(kid)
-        if key in BEADS_CLUSTER:
-            CS, TW = 92, 126
-            x, y = BEADS_CLUSTER[key]
-            cdkey = "etKnob_dark_%d_%d_m" % (CS, TW)
-            fname = knob_strip(sk, "dark", CS)
-            sk.add_def(cdkey, KNOB_ACTIONS, [focus(TW, CS + 58), filmstrip("Knob", fname, KNOB_FRAMES - 1, CS, CS, (TW - CS) // 2, 0),
-                                                name_label(0, CS + 4, TW, 26, 20, "d2d2ce"),
-                                                value_label(0, CS + 30, TW, 28, 22, "e4e4e0")])
-            kid = placed(cdkey, key, sk.index[key], (x - TW // 2, y - CS // 2, TW, CS + 58), True)
-            kid["bounds"]["additionalInvalidatingHandles"] = ["IndexedEnabling/2/3/Parameter %d" % e]
-            kids.append(kid)
+        if key in BEADS_UNMAPPED:
+            covers.append(rect)
 
     # ---- knobs: a filmstrip and MPC's value text under it
     for t, key, cx, cy, s, look in P.KNOBS:
@@ -612,7 +585,7 @@ def build_page(sk, tab, preview=None):
         sk.add_def(dkey, KNOB_ACTIONS, [focus(tw, th), filmstrip("Knob", name, KNOB_FRAMES - 1, s, s, (tw - s) // 2, knob_y),
                                        name_label(0, name_y, tw, 26, NPX, "dcd4c4" if classic else "d2d2ce"),
                                        value_label(0, val_y, tw, 28, VPX, vcol)])
-        place_knob(dkey, key, (R(cx - tw / 2), R(cy - s / 2 - top), tw, th))
+        place(dkey, key, (R(cx - tw / 2), R(cy - s / 2 - top), tw, th))
         if shown is not None:
             v, text, _ = preview.get(key, (0.5, "", False))
             ang = -KNOB_SPAN + 2 * KNOB_SPAN * v
@@ -725,6 +698,18 @@ def build_page(sk, tab, preview=None):
         if shown is not None:
             ImageDraw.Draw(shown).text((x + w / 2, y + h / 2), preview.get("readout", (0, "", 0))[1],
                                        font=ImageFont.truetype(TITILLIUM_B, 34), fill=AMBER + (255,), anchor="mm")
+    # the BEADS covers: last (topmost) kids -- a patch of the page background over each
+    # unmapped knob, visible only while ENGINE is BEADS (single-entry IndexedEnabling,
+    # the pattern the page views use; multi-entry lists are ANDed and hide always).
+    e_idx = sk.index.get("engine")
+    for i, rect in enumerate(covers):
+        x, y, w, h = rect
+        patch = bg.crop((x, y, x + w, y + h))
+        name = sk.save(patch, "et_%d_beadscover_%d.png" % (tab, i))
+        kid = sub("Cover", "Image", {"version": 2, "imageType": "Regular", "colour": "0", "image": name},
+                  bounds_s(x, y, w, h))
+        kid["bounds"]["additionalInvalidatingHandles"] = ["IndexedEnabling/2/3/Parameter %d" % e_idx]
+        kids.append(kid)
     return bg, kids, shown
 
 
@@ -763,12 +748,16 @@ def main(skin):
     # (KNOB_QLINKS = 13,9,5,1,14,10,6,2): keys 0-3 = grid column 1, 4-7 = column 2, ...
     def kid_rects(kids):
         out = {}
-        for k in kids:   # FIRST placement per name wins: on PET a param has two kids (the shared
-            cd = k.get("componentData", {})   # layout + the BEADS cluster) and the Q-Link bank
-            nm, b = cd.get("name"), k.get("bounds", {}).get("bounds")   # boxes follow the shared one
-            if not nm or not b or cd.get("type") == "Image" or nm in out:
+        for k in kids:
+            cd = k.get("componentData", {})
+            nm, b = cd.get("name"), k.get("bounds", {}).get("bounds")
+            if not nm or not b or cd.get("type") == "Image":
                 continue
             x, y, w, h = map(int, b.split())
+            if nm in out:
+                ox, oy, ow, oh = out[nm]
+                x, y = min(ox, x), min(oy, y)
+                w, h = max(ox + ow, x + w) - x, max(oy + oh, y + h) - y
             out[nm] = (x, y, w, h)
         return out
 
