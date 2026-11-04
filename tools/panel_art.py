@@ -436,7 +436,10 @@ def definition(key, actions, parts, ignore=False):
         "version": 4, "actions": actions,
         "backgroundData": {"version": 1, "focussed": {"version": 1, "colour": "0", "image": ""},
                            "unfocussed": {"version": 1, "colour": "0", "image": ""}},
-        "ignoreMousePresses": ignore, "disableCoarseDataWheel": False, "repeats": 1, "hideQLinkBounds": True,
+        # hideQLinkBounds must be False on EVERY definition, controls included: the per-bank
+        # Q-Link outline is suppressed per-component (RMXXXL on device: all defs false; ET's
+        # True on etKnob/etKey defs is why only the first, page-level box ever rendered)
+        "ignoreMousePresses": ignore, "disableCoarseDataWheel": False, "repeats": 1, "hideQLinkBounds": False,
         "componentsData": parts}}
 
 
