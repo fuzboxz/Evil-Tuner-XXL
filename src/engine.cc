@@ -997,7 +997,14 @@ void beads_block(Inst* s, const float* L, const float* R, float* wl, float* wr, 
   mixp.output_gate = false;
   bool freeze[kBlock];
   stmlib::GateFlags seed[kBlock];
-  for (int i = 0; i < n; ++i) { freeze[i] = s->grains.frozen; seed[i] = stmlib::GATE_FLAG_LOW; }
+  for (int i = 0; i < n; ++i) {
+    freeze[i] = s->grains.frozen;
+    // seed gate held high: the free-running internal pulse train (as on the module with SEED
+    // held). LOW silences granular mode entirely -- TriggerGenerator::RenderPulseTrain only
+    // advances while a gate is high, so no grain ever fires (found in review; delay mode --
+    // SIZE at max -- self-clocks and masked it).
+    seed[i] = stmlib::GATE_FLAG_HIGH;
+  }
   beads::FloatFrame in[kBlock], out[kBlock];
   for (int i = 0; i < n; ++i) { in[i].l = L[i]; in[i].r = R[i]; }
   g.Process(beads::SEED_BUTTON_STATE_OFF, seed, freeze, density, p, mixp, in, out, n);

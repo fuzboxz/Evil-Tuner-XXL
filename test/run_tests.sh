@@ -46,7 +46,7 @@ build/host/host build/host/plugin /tmp/et_test.wav 34 url:http://127.0.0.1:$PORT
   at:19 press:keys note:60:100 note:67:90 osc_lvl=0.6 at:21 note:60:0 note:67:0 \
   at:22 press:random press:freeze verb_type=2 sat_type=4 at:24 show:tape_txt \
   at:25 press:keys \
-  at:26 engine=2 mix=0.8 pos=0.3 size=0.4 shape=0.5 grains=0.6 spread=0.4 cloud=0.3 detune=0.2 \
+  at:26 engine=2 mix=0.8 pos=0.3 size=0.4 shape=0.5 grains=0.85 spread=0.4 cloud=0.3 detune=0.2 \
   at:28 press:freeze at:29 press:freeze \
   at:30 shape=0.9 at:31 spread=0.9 \
   at:32 engine=0 | tail -4
