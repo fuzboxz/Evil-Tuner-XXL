@@ -698,16 +698,23 @@ def build_page(sk, tab, preview=None):
         if shown is not None:
             ImageDraw.Draw(shown).text((x + w / 2, y + h / 2), preview.get("readout", (0, "", 0))[1],
                                        font=ImageFont.truetype(TITILLIUM_B, 34), fill=AMBER + (255,), anchor="mm")
-    # the BEADS covers: last (topmost) kids -- a patch of the page background over each
+    # the BEADS covers: last (topmost) kids -- a FLAT panel-coloured rectangle over each
     # unmapped knob, visible only while ENGINE is BEADS (single-entry IndexedEnabling,
     # the pattern the page views use; multi-entry lists are ANDed and hide always).
+    # Flat fill, not a crop of the page background: the background art carries the dotted
+    # tick arc knob_ticks() bakes around every knob position (radius 0.64*s), and a crop
+    # would reproduce it. Padded well past the knob component so the arc is swallowed too.
     e_idx = sk.index.get("engine")
+    PANEL = (0x10, 0x10, 0x10)   # theme_panel=101010 (panel.py), the modern pages' matte panel
+    PAD = 36
     for i, rect in enumerate(covers):
         x, y, w, h = rect
-        patch = bg.crop((x, y, x + w, y + h))
+        x0, y0 = max(0, x - PAD), max(0, y - PAD)
+        x1, y1 = min(P.W, x + w + PAD), min(P.H, y + h + PAD)
+        patch = Image.new("RGB", (x1 - x0, y1 - y0), PANEL)
         name = sk.save(patch, "et_%d_beadscover_%d.png" % (tab, i))
         kid = sub("Cover", "Image", {"version": 2, "imageType": "Regular", "colour": "0", "image": name},
-                  bounds_s(x, y, w, h))
+                  bounds_s(x0, y0, x1 - x0, y1 - y0))
         kid["bounds"]["additionalInvalidatingHandles"] = ["IndexedEnabling/2/3/Parameter %d" % e_idx]
         kids.append(kid)
     return bg, kids, shown
