@@ -738,11 +738,9 @@ def main(skin):
         return out
 
     def column_rects(keys, rects):
-        # Entry 0 is what MPC draws on a Live III (checked on device: it renders qlinkBoundsData[0]
-        # whichever bank/knob is active; entries 1-3 were never drawn). So entry 0 = the union of
-        # EVERY control this page's Q-Links drive (all banks); 1-3 keep the per-column unions for
-        # firmwares/devices that do render them. Empty columns are "0 0 0 0" (renders as no box).
-        allk = [k for k in keys if k != "-" and k in rects]
+        # One rect per Q-Link bank (keys 0-3 = bank 1 = Q1-4, 4-7 = bank 2 = Q5-8, ...), matching
+        # the RowTopDown map: stock (DrumSynthMulti) renders every bank's rect; an empty bank is
+        # "0 0 0 0" (no box). Always four entries, positionally.
         cols = []
         for c in range(4):
             boxes = [rects[k] for k in keys[c * 4:c * 4 + 4] if k != "-" and k in rects]
@@ -752,11 +750,6 @@ def main(skin):
             x0, y0 = max(0, min(b[0] for b in boxes) - 6), max(0, min(b[1] for b in boxes) - 6)
             x1, y1 = min(P.W, max(b[0] + b[2] for b in boxes) + 6), min(P.H, max(b[1] + b[3] for b in boxes) + 6)
             cols.append("%d %d %d %d" % (x0, y0, x1 - x0, y1 - y0))
-        if allk:
-            boxes = [rects[k] for k in allk]
-            x0, y0 = max(0, min(b[0] for b in boxes) - 6), max(0, min(b[1] for b in boxes) - 6)
-            x1, y1 = min(P.W, max(b[0] + b[2] for b in boxes) + 6), min(P.H, max(b[1] + b[3] for b in boxes) + 6)
-            cols[0] = "%d %d %d %d" % (x0, y0, x1 - x0, y1 - y0)
         return cols
 
     for p in tui["pageData"]["tabs"]:
