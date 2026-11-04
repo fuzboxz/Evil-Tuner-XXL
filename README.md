@@ -230,7 +230,9 @@ Three grain engines, picked with **ENGINE** (XXL GRAINS, CLOUDS, BEADS):
   their steps as the amount's detents), and MEDIA (CLOUDS MODE) selects the module's settings-menu flavors: DIGITAL (the default), VINTAGE DIGITAL (12-bit), CLEAN TAPE and
   DIRTY TAPE (half-rate tapes with wow & flutter on dirty), plus MONO DIGITAL and MONO DIRTY on the last two steps. Switching media reconfigures the engine and the material
   carries over: the last ~5 s is re-recorded into the new media through its own converters (~0.6 s, silent) -- the encodings differ (16/12/8-bit, the tapes at half rate),
-  so the buffer is rebuilt, not transplanted. Mode crossings (SIZE to max and back) never dropped the buffer in the first place.
+  so the buffer is rebuilt, not transplanted -- a larger target buffer is neither repeated nor padded: the read bound (the module's own trim/duration tracking) grows over
+  exactly the carried material, so TIME always finds audio. The same trim starts each BEADS stint as a fresh take (TIME tracks what this stint has recorded). Mode crossings
+  (SIZE to max and back) never dropped the buffer in the first place.
 
 The knobs' names follow the engine and the mode: in CLOUDS GRANULAR, GRAINS reads DENSITY, SHAPE TEXTURE, CLOUD
 FEEDBACK, DETUNE CLOUD VERB; in LOOPING DELAY, POSITION reads DELAY TIME and SIZE LOOP SIZE, and so on. The screen always

@@ -1032,12 +1032,17 @@ void beads_block(Inst* s, const float* L, const float* R, float* wl, float* wr, 
   if (mo != s->bd_cfg) {
     s->bd_cfg = mo;
     g.Configure(kMediaOf[mo], mo >= 4);
+    g.Trim();   // duration_ = 0: the read bound will grow over exactly what is re-recorded
     // carry the material across: the new media's encoding/rate differs (16/12/8-bit, the
     // tapes at half rate), so the buffer cannot be transplanted -- it is RE-RECORDED. The
     // shadow ring below holds the last ~5 s of what Beads was fed; replaying it through the
     // new media's own write path (its SRC filters + encoders) rebuilds the buffer with the
-    // old content, chronology intact, at ~8x real time (~0.6 s).
+    // old content, chronology intact, at ~8x real time (~0.6 s). The rest of a larger
+    // buffer is neither repeated nor padded -- it is simply beyond duration(), unread.
     if (s->bd_shadow) s->bd_replay = std::max(0L, s->bd_shadow_w - 5L * ET_SR);
+  }
+  if (s->bd_mix <= 0.f) {
+    g.Trim();   // a BEADS stint starts a fresh take: TIME tracks this stint's recording
   }
   p.time.attenuverter = clampf(E(s, P_SPREAD), 0.f, 1.f);
   p.size.attenuverter = 0.f;
