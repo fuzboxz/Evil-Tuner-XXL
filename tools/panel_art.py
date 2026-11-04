@@ -706,7 +706,7 @@ def build_page(sk, tab, preview=None):
     # would reproduce it. Padded well past the knob component so the arc is swallowed too.
     e_idx = sk.index.get("engine")
     PANEL = (27, 27, 27)   # the section panels' recess fill (modern_bg) -- the lighter gray behind the knobs
-    PAD = 4
+    PAD = 14   # hides the tick arc fully (it reaches 0.64*s, ~13 px above the knob box)
     for i, rect in enumerate(covers):
         x, y, w, h = rect
         x0, y0 = max(0, x - PAD), max(0, y - PAD)
