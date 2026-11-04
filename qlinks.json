@@ -133,15 +133,15 @@
      "n": 13,
      "qlinkPage": 1,
      "knob": 13,
-     "key": "spread",
-     "name": "SPREAD"
+     "key": "osc_lvl",
+     "name": "OSC LEVEL"
     },
     {
      "n": 14,
      "qlinkPage": 1,
      "knob": 14,
-     "key": "cl_mode",
-     "name": "CLOUDS MODE"
+     "key": "scale",
+     "name": "SCALE"
     },
     {
      "n": 15,
@@ -154,8 +154,8 @@
      "n": 16,
      "qlinkPage": 1,
      "knob": 16,
-     "key": "scale",
-     "name": "SCALE"
+     "key": "spread",
+     "name": "SPREAD"
     }
    ]
   },

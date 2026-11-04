@@ -87,18 +87,24 @@ QLINKS[T] = [["genre", "country", "sort", "kbps", "in_lvl"]]
 
 # ------------------------------------------------------------------------------------------------ PET (modern)
 T = 1
-SECTIONS += [(T, "GRAIN ENGINE", 16, 10, 1248, 206), (T, "GRAIN SHAPE  /  TONE", 16, 222, 1248, 206)]
-knob_row(T, ["engine", "cl_mode", "pos", "size", "pitch", "scale", "grains", "grain_sync", "spread"], 88, 16, 1264, 92, "dark")
-knob_row(T, ["cloud", "detune", "shape", "cutoff", "reso", "flt_env", "osc_lvl", "mix", "volume"], 300, 16, 1264, 92, "dark")
+# Bank quadrants: each Q-Link bank is a contiguous 4-knob group on one row, so MPC's one-box-
+# per-bank indicator hugs exactly its knobs (the framework draws a single qlinkBoundsData rect
+# per column -- multi-line banks got diagonal hull boxes). cl_mode is not Q-Linked (covered in
+# XXL, MEDIA/modes elsewhere: touch-only, at the row end); osc_lvl takes the freed slot.
+SECTIONS += [(T, "GRAIN ENGINE", 16, 10, 1248, 206), (T, "TONE  /  OUTPUT", 16, 222, 1248, 206)]
+knob_row(T, ["engine", "pos", "size", "pitch", "grains", "cloud", "detune", "shape", "flt_env"], 88, 16, 1264, 92, "dark")
+knob_row(T, ["osc_lvl", "scale", "grain_sync", "spread", "cutoff", "reso", "mix", "volume", "cl_mode"], 300, 16, 1264, 92, "dark")
 key_row(T, [("freeze", "FREEZE"), ("keys", "KEYS"), ("ft_lp", "LP"), ("ft_hp", "HP"), ("ft_bp", "BP"), ("ft_comb", "COMB"),
             ("ft_dual", "DUAL"), ("osc", "OSC"), ("random", "RANDOM")], 470, 16, 1264, "round")
 # One qlinks set per tab, max 16 keys (the framework's settled design -- NOTES "Split-screen
 # Q-Link banks: tried, reverted": sub-pages fragmented on device; RMXXXL's one-page-per-tab
 # shape is the proven one). Priority per the framework's guidance: main knobs and levels first,
-# enums last. PET drops flt_env/osc_lvl; MOD drops the three LFO wave selectors -- they stay on
-# screen and touchable, just without a dedicated Q-Link knob.
-QLINKS[T] = [["engine", "pos", "size", "pitch", "grains", "cloud", "detune", "shape",
-              "cutoff", "reso", "mix", "volume", "spread", "cl_mode", "grain_sync", "scale"]]
+# enums last (PET: bank-quadrant order instead). PET Q-Links osc_lvl and drops flt_env and cl_mode;
+# MOD drops the three LFO wave selectors -- they stay on screen and touchable, just without a Q-Link.
+QLINKS[T] = [["engine", "pos", "size", "pitch",                      # bank 1: row 1 left
+              "grains", "cloud", "detune", "shape",                     # bank 2: row 1 right
+              "cutoff", "reso", "mix", "volume",                        # bank 3: row 2 right
+              "osc_lvl", "scale", "grain_sync", "spread"]]              # bank 4: row 2 left
 
 # ------------------------------------------------------------------------------------------------ FX (modern)
 T = 2
