@@ -48,6 +48,10 @@ $ZIG cc $TGT $COMMON -std=gnu11 -w -Ibuild -I"$MPC_VST/wrapper" -c "$MPC_VST/wra
 printf '{\n  global: VSTPluginMain;\n  local: *;\n};\n' > build/arm64/exports.map
 $ZIG c++ $TGT -shared -fPIC -Wl,--no-undefined -Wl,--version-script=build/arm64/exports.map -Wl,--gc-sections -Wl,-s \
   $OBJS build/arm64/vst2_wrap.o -lm -ldl -lpthread -o build/arm64/evil_tuner_xxl.so
+# the framework pipeline's post-link gate (tools/build_port.sh): exports + glibc ceiling
+readelf --dyn-syms -W build/arm64/evil_tuner_xxl.so | grep -E ' GLOBAL .* [0-9]+ [A-Za-z]' | grep -v UND | awk '{printf "exported: %s ", $8} END {print ""}'
+echo "highest glibc: $(readelf -V build/arm64/evil_tuner_xxl.so | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1) (Gen1 MPC OS 2.x has 2.32, Gen2 3.x has 2.39)"
+md5sum build/arm64/evil_tuner_xxl.so
 
 PKG="build/package-gen2/$NAME"
 rm -rf build/package-gen2 && mkdir -p "$PKG/bin"
