@@ -17,4 +17,4 @@ BD_SRCS="third_party/beads/dsp/delay_clock.cc third_party/beads/dsp/delay_contro
  third_party/beads/dsp/processor.cc third_party/beads/dsp/synth.cc third_party/beads/dsp/trigger_generator.cc \
  third_party/beads/resources.cc"
 INCS="-Isrc -Ithird_party -Ithird_party/parasites -Isrc/juce_shim -Ithird_party/curl/include -Ithird_party/dragonfly/common -Ithird_party/dragonfly/shim"
-DEFS="-D_FILE_OFFSET_BITS=64 -DLIBFV3_FLOAT -DTEST"
+DEFS="-D_FILE_OFFSET_BITS=64 -DLIBFV3_FLOAT -DTEST -DBEADS_INTERNAL_SR=44100.0f"   # BEADS: the MPC host rate (= ET_SR); keeps Beads' time constants real-time

@@ -45,6 +45,14 @@
 // is also applied to the output signal within the wow and flutter code.
 #define ENABLE_HARDWARE_24K
 
+// The port runs this code at the host's rate (44.1 kHz on MPC), not the module's 48 kHz:
+// BEADS_INTERNAL_SR feeds every time constant (Init, sample_rate()) so grain durations,
+// trigger rates, delay times and the reverb keep their real-time values. The 32 kHz / 24 kHz
+// media stay literal (the port never leaves MEDIA_DIGITAL).
+#ifndef BEADS_INTERNAL_SR
+#define BEADS_INTERNAL_SR 48000.0f
+#endif
+
 namespace beads {
 
 // (512 + 256) * 1000 bytes, 48kHz 16-bit stereo = 4 seconds
@@ -77,9 +85,9 @@ class Processor {
   
   inline float sample_rate() const {
 #ifdef ENABLE_HARDWARE_24K
-    float sr[4] = { 24000.0f, 48000.0f, 32000.0f, 48000.0f };
+    float sr[4] = { 24000.0f, BEADS_INTERNAL_SR, 32000.0f, BEADS_INTERNAL_SR };
 #else
-    float sr[4] = { 48000.0f, 48000.0f, 32000.0f, 48000.0f };
+    float sr[4] = { BEADS_INTERNAL_SR, BEADS_INTERNAL_SR, 32000.0f, BEADS_INTERNAL_SR };
 #endif  // ENABLE_HARDWARE_24K
     return sr[media_];
   }

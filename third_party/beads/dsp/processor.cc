@@ -43,7 +43,7 @@ using namespace stmlib;
 void Processor::Init(
     uint8_t* buffers[],
     uint16_t* reverb_buffer) {
-  processor_digital_.Init(48000.0f, buffers);
+  processor_digital_.Init(BEADS_INTERNAL_SR, buffers);
   processor_vintage_digital_.Init(32000.0f, buffers);
   processor_clean_tape_.Init(24000.0f, buffers);
   processor_dirty_tape_.Init(24000.0f, buffers);
@@ -51,7 +51,7 @@ void Processor::Init(
   dry_ = 0.0f;
   wet_ = 0.0f;
   
-  reverb_.Init(reverb_buffer, 48000.0f);
+  reverb_.Init(reverb_buffer, BEADS_INTERNAL_SR);
 #ifdef ENABLE_HARDWARE_24K
   wow_and_flutter_.Init(24000.0f);
   wow_and_flutter_.set_lp(0.95f);

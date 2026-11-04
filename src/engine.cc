@@ -1011,7 +1011,10 @@ void beads_block(Inst* s, const float* L, const float* R, float* wl, float* wr, 
   density.cv = 0.f;
   beads::Processor::MixParameters mixp;
   mixp.feedback = clampf(E(s, P_CLOUD), 0.f, 1.f);       // CLOUDS precedent: CLOUD = feedback
-  mixp.dry_wet = clampf(E(s, P_MIX), 0.f, 1.f);
+  // dry_wet is pinned FULL WET: the module with its DRY/WET pot at wet. The ET MIX knob that
+  // blends the engine bus (render_block: L*(1-mix) + wet*mix) is the single crossfade -- two
+  // stacked crossfaders leaked up to ~28% extra dry at mid positions (audit finding).
+  mixp.dry_wet = 1.f;
   mixp.reverb_amount = clampf(E(s, P_DETUNE), 0.f, 1.f); // CLOUDS precedent: DETUNE = reverb wet
   mixp.output_gate = false;
   bool freeze[kBlock];
