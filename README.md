@@ -225,7 +225,7 @@ Three grain engines, picked with **ENGINE** (XXL GRAINS, CLOUDS, BEADS):
   is PITCH -- turning through the module's own musical steps (0, 1, 3, 4, 7, 12, 24 semitones and their negatives;
   KEYS transposes continuously) -- and GRAINS is DENSITY; FREEZE freezes. CLOUD carries FEEDBACK and DETUNE carries
   REVERB wet (the same slots as in CLOUDS), GRAIN MIX is BEADS MIX (dry/wet). SPREAD, CLOUDS MODE and GRAIN SYNC have
-  no Beads counterpart: they are covered by a patch of the page background while BEADS is selected and do nothing (the PET Q-Link set keeps them in its last bank).
+  no Beads counterpart: in BEADS they do not exist: the BEADS page is its own compact layout (the live knobs together on the left); the PET Q-Link set keeps the BEADS-less knobs in its last bank.
 
 The knobs' names follow the engine and the mode: in CLOUDS GRANULAR, GRAINS reads DENSITY, SHAPE TEXTURE, CLOUD
 FEEDBACK, DETUNE CLOUD VERB; in LOOPING DELAY, POSITION reads DELAY TIME and SIZE LOOP SIZE, and so on. The screen always
