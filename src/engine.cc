@@ -23,6 +23,10 @@ extern "C" {
 #include "reverbs.h"
 #include "param_defs.h"
 #include "../third_party/loop-saboteur/Source/OutputStage.h"
+// Beads' headers parse BEFORE Clouds': the two vendored stmlib copies share include guards, and Beads' copy is a
+// superset (same bodies for everything this TU's Clouds inline code uses). Clouds' own .cc files are separate TUs
+// with their own headers, so Clouds' DSP compiles exactly as before.
+#include "beads/dsp/processor.h"
 #include "clouds/dsp/granular_processor.h"
 #include <pthread.h>
 #include <time.h>
@@ -128,6 +132,12 @@ struct Inst {
   volatile bool cl_quit = false;
   pthread_mutex_t cl_mu;
   pthread_cond_t cl_wake;
+  // ---- Beads (0.3.0): the BEADS engine. No Prepare() and no helper thread: everything happens in Process.
+  beads::Processor* bd = nullptr;
+  uint8_t* bd_delay1 = nullptr;       // 512 KB, sliced into beads.cc's first two 256 KB banks
+  uint8_t* bd_delay2 = nullptr;       // 256 KB, beads.cc's third bank
+  uint16_t* bd_verb = nullptr;        // 32768 words: the reverb's FxEngine<32768> clears all of them on Init
+  float bd_mix = 0.f;                 // fades BEADS in / out when the engine changes
   int last_note = -1;                 // KEYS: the note Clouds plays (the last one pressed)
   uint32_t clock = 0;                 // blocks
   uint32_t display_rev = 1;
@@ -154,8 +164,9 @@ std::string value_text(const Inst* s, int p) {
     return std::string(b);
   };
   bool clouds = opt(s, P_ENGINE) == 1;
-  if (clouds && (p == P_POS || p == P_SIZE || p == P_GRAINS || p == P_SHAPE || p == P_SPREAD || p == P_CLOUD || p == P_DETUNE)) {
-    if (p == P_GRAINS && opt(s, P_GRAIN_SYNC) && opt(s, P_CL_MODE) == 0) {
+  bool beads = opt(s, P_ENGINE) == 2;
+  if ((clouds || beads) && (p == P_POS || p == P_SIZE || p == P_GRAINS || p == P_SHAPE || p == P_SPREAD || p == P_CLOUD || p == P_DETUNE)) {
+    if (clouds && p == P_GRAINS && opt(s, P_GRAIN_SYNC) && opt(s, P_CL_MODE) == 0) {
       snprintf(b, sizeof b, "CHANCE %d%%", (int)lroundf((0.15f + 0.85f * v) * 100.f));
       return b;
     }
@@ -234,6 +245,20 @@ std::string value_text(const Inst* s, int p) {
 // the PET knobs' names: XXL GRAINS' own, or what the knob does in Clouds' mode (the Clouds and Parasites manuals' names,
 // as RMXXXL shows them)
 const char* knob_name(const Inst* s, int p) {
+  if (opt(s, P_ENGINE) == 2) {   // BEADS: the module's own pot names, per the engine mapping
+    switch (p) {
+      case P_POS: return "TIME";
+      case P_SIZE: return "SIZE";
+      case P_SHAPE: return "SHAPE";
+      case P_GRAINS: return "DENSITY";
+      case P_PITCH: return "PITCH";
+      case P_SPREAD: return "SPREAD";
+      case P_CLOUD: return "REVERB";
+      case P_DETUNE: return "FEEDBACK";
+      case P_MIX: return "BEADS MIX";
+      default: return PARAM_DEFS[p].name;
+    }
+  }
   if (opt(s, P_ENGINE) != 1) return PARAM_DEFS[p].name;
   int m = std::max(0, std::min(5, opt(s, P_CL_MODE)));
   //                                   GRANULAR       STRETCH       LOOPING DELAY  SPECTRAL      OLIVERB        RESONESTOR
@@ -947,6 +972,39 @@ void clouds_block(Inst* s, const float* L, const float* R, float* wl, float* wr,
   if (s->cl_thread_on) pthread_cond_signal(&s->cl_wake);
 }
 
+// the wet signal of Beads for this block into wl / wr (the BEADS engine). kenv: the keys' envelope (1 without KEYS).
+// The media is fixed MEDIA_DIGITAL stereo (set by Processor::Init): ratio 1, so a block of any size is fine.
+void beads_block(Inst* s, const float* L, const float* R, float* wl, float* wr, int n, int scale, float kenv) {
+  beads::Processor& g = *s->bd;
+  beads::Parameters p;
+  int semis = pitch_semis(E(s, P_PITCH), scale) + (s->keys_mode && s->last_note >= 0 ? s->last_note - 60 : 0);
+  p.time.base = clampf(E(s, P_POS), 0.f, 1.f);
+  p.time.attenuverter = clampf(E(s, P_SPREAD), 0.f, 1.f);   // SPREAD is Beads' time attenuverter (no randomness)
+  p.size.base = clampf(E(s, P_SIZE), 0.f, 1.f);
+  p.shape.base = clampf(E(s, P_SHAPE), 0.f, 1.f);
+  p.pitch.base = clampf((float)semis, -48.f, 48.f);
+  p.size.attenuverter = p.shape.attenuverter = p.pitch.attenuverter = 0.f;
+  p.time.cv = p.size.cv = p.shape.cv = p.pitch.cv = 0.f;
+  p.time.has_cv = p.size.has_cv = p.shape.has_cv = p.pitch.has_cv = false;
+  p.monophonic_mode = false;
+  beads::ModulatedParameter density;
+  density.base = clampf(E(s, P_GRAINS), 0.f, 1.f);
+  density.cv = 0.f;
+  beads::Processor::MixParameters mixp;
+  mixp.feedback = clampf(E(s, P_DETUNE), 0.f, 1.f);
+  mixp.dry_wet = clampf(E(s, P_MIX), 0.f, 1.f);
+  mixp.reverb_amount = clampf(E(s, P_CLOUD), 0.f, 1.f);
+  mixp.output_gate = false;
+  bool freeze[kBlock];
+  stmlib::GateFlags seed[kBlock];
+  for (int i = 0; i < n; ++i) { freeze[i] = s->grains.frozen; seed[i] = stmlib::GATE_FLAG_LOW; }
+  beads::FloatFrame in[kBlock], out[kBlock];
+  for (int i = 0; i < n; ++i) { in[i].l = L[i]; in[i].r = R[i]; }
+  g.Process(beads::SEED_BUTTON_STATE_OFF, seed, freeze, density, p, mixp, in, out, n);
+  const float makeup = 1.2f;   // makeup gain: a starting value, to be tuned by ear
+  for (int i = 0; i < n; ++i) { wl[i] = out[i].l * makeup * kenv; wr[i] = out[i].r * makeup * kenv; }
+}
+
 void push_reverb(Inst* s, int type) {
   int k = type == 2 ? 1 : 0;   // ROOM, else the plate (PLATE, and REVERSE's source)
   const ReverbApi* api = k ? &kRoomReverb : &kPlateReverb;
@@ -1014,14 +1072,17 @@ void render_block(Inst* s, float* L, float* R, int n) {
       envmax = fmaxf(envmax, vc.env.v * vc.vel);
     }
   }
-  // ---- the grain engines: XXL GRAINS and CLOUDS (a short crossfade when the engine changes)
+  // ---- the grain engines: XXL GRAINS, CLOUDS and BEADS (a short crossfade when the engine changes)
   int engine = opt(s, P_ENGINE);
   float step = 1.f / 441.f;
-  float gw[2][kBlock], cw[2][kBlock];
+  float gw[2][kBlock], cw[2][kBlock], bw[2][kBlock];
   memset(gw, 0, sizeof gw);
   memset(cw, 0, sizeof cw);
-  bool run_xxl = engine == 0 || s->cl_mix < 1.f;
-  bool run_cl = (engine == 1 || s->cl_mix > 0.f) && s->cl;
+  memset(bw, 0, sizeof bw);
+  float f1 = s->cl_mix, f2 = s->bd_mix;   // the fades as they were decide what to render
+  bool run_xxl = engine == 0 || f1 + f2 < 1.f;   // XXL keeps what CLOUDS and BEADS do not take
+  bool run_cl = (engine == 1 || f1 > 0.f) && s->cl;
+  bool run_bd = (engine == 2 || f2 > 0.f) && s->bd;
   int sync = opt(s, P_GRAIN_SYNC);
   static const double kSyncBeats[7] = {0, 1.0, 0.5, 0.25, 0.125, 1.0 / 3.0, 1.0 / 6.0};
   double beat0 = s->host_pos && s->tempo.playing ? s->tempo.ppq : s->own_beats;
@@ -1045,11 +1106,16 @@ void render_block(Inst* s, float* L, float* R, int n) {
   }
   if (run_cl) clouds_block(s, L, R, cw[0], cw[1], n, scale, sync ? kSyncBeats[sync] : 0.0, beat0, bpf,
                            s->keys_mode ? envmax : 1.f);
+  if (run_bd) beads_block(s, L, R, bw[0], bw[1], n, scale, s->keys_mode ? envmax : 1.f);
   for (int i = 0; i < n; ++i) {
     s->cl_mix += engine == 1 ? step : -step;
+    s->bd_mix += engine == 2 ? step : -step;
     s->cl_mix = clampf(s->cl_mix, 0.f, 1.f);
-    float f = s->cl_mix;
-    float wl = gw[0][i] * (1.f - f) + cw[0][i] * f, wr = gw[1][i] * (1.f - f) + cw[1][i] * f;
+    s->bd_mix = clampf(s->bd_mix, 0.f, 1.f);
+    float f = s->cl_mix, b = s->bd_mix;
+    float w0 = clampf((1.f - f) - b, 0.f, 1.f);   // XXL's fade: what CLOUDS and BEADS leave it
+    float wl = gw[0][i] * w0 + cw[0][i] * f + bw[0][i] * b;
+    float wr = gw[1][i] * w0 + cw[1][i] * f + bw[1][i] * b;
     L[i] = L[i] * (1.f - mix) + wl * mix + wet[0][i];
     R[i] = R[i] * (1.f - mix) + wr * mix + wet[1][i];
   }
@@ -1229,6 +1295,17 @@ void* create(const char* dataDir) {
     pthread_cond_init(&s->cl_wake, nullptr);
     s->cl_thread_on = pthread_create(&s->cl_thread, nullptr, clouds_prepare_loop, s) == 0;
   } else free(clm);
+  // Beads: zeroed memory (the firmware keeps it in BSS; Init() leaves members unset), its banks, no helper thread.
+  // The bank slicing is beads.cc's verbatim; Init() leaves the media at MEDIA_DIGITAL (BEADS' fixed media).
+  s->bd_delay1 = static_cast<uint8_t*>(calloc(1, 2 * 256 * 1024));
+  s->bd_delay2 = static_cast<uint8_t*>(calloc(1, 256 * 1024));
+  s->bd_verb = static_cast<uint16_t*>(calloc(32768, sizeof(uint16_t)));
+  void* bdm = calloc(1, sizeof(beads::Processor));
+  if (bdm && s->bd_delay1 && s->bd_delay2 && s->bd_verb) {
+    s->bd = new (bdm) beads::Processor;
+    uint8_t* bdbuf[3] = { s->bd_delay1, s->bd_delay1 + (256 * 1024), s->bd_delay2 };
+    s->bd->Init(bdbuf, s->bd_verb);
+  } else free(bdm);
   s->src.start(s->plugin_dir, s->data_dir);
   s->dir.start(s->data_dir);
   s->work.start();
@@ -1251,6 +1328,10 @@ void destroy(void* p) {
   if (s->cl) { s->cl->~GranularProcessor(); free(s->cl); }
   free(s->cl_large);
   free(s->cl_small);
+  if (s->bd) { s->bd->~Processor(); free(s->bd); }
+  free(s->bd_delay1);
+  free(s->bd_delay2);
+  free(s->bd_verb);
   s->tape.free_all();
   s->looper.free_all();
   if (s->rv[0]) kPlateReverb.destroy(s->rv[0]);

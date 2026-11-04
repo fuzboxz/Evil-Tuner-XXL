@@ -11,5 +11,10 @@ PA=third_party/parasites
 CL_SRCS="$PA/clouds/dsp/correlator.cc $PA/clouds/dsp/granular_processor.cc $PA/clouds/dsp/mu_law.cc \
  $PA/clouds/dsp/pvoc/frame_transformation.cc $PA/clouds/dsp/pvoc/phase_vocoder.cc $PA/clouds/dsp/pvoc/stft.cc \
  $PA/clouds/resources.cc $PA/stmlib/dsp/atan.cc $PA/stmlib/dsp/units.cc $PA/stmlib/utils/random.cc"
-INCS="-Isrc -Ithird_party/parasites -Isrc/juce_shim -Ithird_party/curl/include -Ithird_party/dragonfly/common -Ithird_party/dragonfly/shim"
+# Mutable Instruments Beads (MIT), the BEADS grain engine. Its stmlib copy is header-only here: the units.cc /
+# random.cc globals it needs are already provided by the Clouds build above.
+BD_SRCS="third_party/beads/dsp/delay_clock.cc third_party/beads/dsp/delay_controller.cc third_party/beads/dsp/mu_law.cc \
+ third_party/beads/dsp/processor.cc third_party/beads/dsp/synth.cc third_party/beads/dsp/trigger_generator.cc \
+ third_party/beads/resources.cc"
+INCS="-Isrc -Ithird_party -Ithird_party/parasites -Isrc/juce_shim -Ithird_party/curl/include -Ithird_party/dragonfly/common -Ithird_party/dragonfly/shim"
 DEFS="-D_FILE_OFFSET_BITS=64 -DLIBFV3_FLOAT -DTEST"

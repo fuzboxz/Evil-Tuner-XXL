@@ -131,7 +131,7 @@ KBD = [("kb_%s" % c.lower(), c) for c in "1234567890QWERTYUIOPASDFGHJKLZXCVBNM"]
       [("kb_space", "SPACE"), ("kb_del", "DEL"), ("kb_clr", "CLEAR"), ("kb_go", "GO"), ("kb_close", "CLOSE")]
 
 # ---- 0.2.0, appended (MPC keeps a project's values by parameter index: never insert above)
-ENGINES = ["XXL GRAINS", "CLOUDS"]
+ENGINES = ["XXL GRAINS", "CLOUDS", "BEADS"]
 CLOUDS_MODES = ["GRANULAR", "STRETCH", "LOOPING DELAY", "SPECTRAL", "OLIVERB", "RESONESTOR"]
 SCALES = ["CHROMATIC", "MAJOR", "MINOR", "DORIAN", "PENTATONIC", "MINOR PENTA", "5THS + OCT", "OCTAVES"]
 GRAIN_SYNC = ["FREE", "1/4", "1/8", "1/16", "1/32", "1/8T", "1/16T"]

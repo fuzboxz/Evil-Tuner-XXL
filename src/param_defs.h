@@ -24,7 +24,7 @@ static const char *const OPTS_L2_DEST[] = {"OFF", "POSITION", "SIZE", "PITCH", "
 static const char *const OPTS_L3_WAVE[] = {"SINE", "TRI", "SAW UP", "SAW DN", "SQUARE", "S&H", "DRIFT"};
 static const char *const OPTS_L3_DEST[] = {"OFF", "POSITION", "SIZE", "PITCH", "GRAINS", "SPREAD", "CLOUD", "DETUNE", "SHAPE", "CUTOFF", "RESONANCE", "GRAIN MIX", "CHAR INT", "SAT AMOUNT", "DELAY TIME", "DELAY FB", "DELAY WET", "VERB MIX", "GATE DEPTH", "LOOP SPEED", "VOLUME"};
 static const char *const OPTS_FOL_DEST[] = {"OFF", "POSITION", "SIZE", "PITCH", "GRAINS", "SPREAD", "CLOUD", "DETUNE", "SHAPE", "CUTOFF", "RESONANCE", "GRAIN MIX", "CHAR INT", "SAT AMOUNT", "DELAY TIME", "DELAY FB", "DELAY WET", "VERB MIX", "GATE DEPTH", "LOOP SPEED", "VOLUME"};
-static const char *const OPTS_ENGINE[] = {"XXL GRAINS", "CLOUDS"};
+static const char *const OPTS_ENGINE[] = {"XXL GRAINS", "CLOUDS", "BEADS"};
 static const char *const OPTS_CL_MODE[] = {"GRANULAR", "STRETCH", "LOOPING DELAY", "SPECTRAL", "OLIVERB", "RESONESTOR"};
 static const char *const OPTS_SCALE[] = {"CHROMATIC", "MAJOR", "MINOR", "DORIAN", "PENTATONIC", "MINOR PENTA", "5THS + OCT", "OCTAVES"};
 static const char *const OPTS_GRAIN_SYNC[] = {"FREE", "1/4", "1/8", "1/16", "1/32", "1/8T", "1/16T"};
@@ -228,7 +228,7 @@ static const ParamDef PARAM_DEFS[P_COUNT] = {
     {"row7", "STATION 7", PK_ROW, 0, 0.0f, 0},
     {"row8", "STATION 8", PK_ROW, 0, 0.0f, 0},
     {"view", "VIEW", PK_VIEW, 4, 0.0f, OPTS_VIEW},
-    {"engine", "ENGINE", PK_KNOB, 2, 0.0f, OPTS_ENGINE},
+    {"engine", "ENGINE", PK_KNOB, 3, 0.0f, OPTS_ENGINE},
     {"cl_mode", "CLOUDS MODE", PK_KNOB, 6, 0.0f, OPTS_CL_MODE},
     {"scale", "SCALE", PK_KNOB, 8, 0.0f, OPTS_SCALE},
     {"grain_sync", "GRAIN SYNC", PK_KNOB, 7, 0.0f, OPTS_GRAIN_SYNC},

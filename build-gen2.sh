@@ -44,6 +44,12 @@ for f in $DF_SRCS $CL_SRCS; do
   [ "$o" -nt "$f" ] || $ZIG c++ $TGT $COMMON -std=gnu++11 -w -Wno-c++11-narrowing -Wno-narrowing $DEFS $INCS -c "$f" -o "$o"
   OBJS="$OBJS $o"
 done
+# Beads is modern C++: compile it like the engine's own sources, just silenced (-w)
+for f in $BD_SRCS; do
+  o="build/arm64/$(echo "$f" | tr / _).o"
+  [ "$o" -nt "$f" ] || $ZIG c++ $TGT $COMMON -std=gnu++17 -w $DEFS $INCS -c "$f" -o "$o"
+  OBJS="$OBJS $o"
+done
 $ZIG cc $TGT $COMMON -std=gnu11 -w -Ibuild -I"$MPC_VST/wrapper" -c "$MPC_VST/wrapper/vst2_wrap.c" -o build/arm64/vst2_wrap.o
 printf '{\n  global: VSTPluginMain;\n  local: *;\n};\n' > build/arm64/exports.map
 $ZIG c++ $TGT -shared -fPIC -Wl,--no-undefined -Wl,--version-script=build/arm64/exports.map -Wl,--gc-sections -Wl,-s \
