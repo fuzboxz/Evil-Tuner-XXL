@@ -717,6 +717,47 @@ def main(skin):
                                             "unfocussed": {"version": 1, "colour": "ff101010", "image": ""}}
             keep.append(e)
     cdefs["localComponentDefinitions"] = keep + sk.defs
+
+    # ---- Q-Link bounds: shadow_skin computed qlinkBoundsData from layout.conf's placeholder knob
+    # coordinates, but panel_art is what places the real controls -- rewrite each Q-Link page's
+    # column boxes from the actual placed geometry. Columns follow shadow_skin's qlink_for_slot
+    # (KNOB_QLINKS = 13,9,5,1,14,10,6,2): keys 0-3 = grid column 1, 4-7 = column 2, ...
+    def kid_rects(kids):
+        out = {}
+        for k in kids:
+            cd = k.get("componentData", {})
+            nm, b = cd.get("name"), k.get("bounds", {}).get("bounds")
+            if not nm or not b or cd.get("type") == "Image":
+                continue
+            x, y, w, h = map(int, b.split())
+            if nm in out:
+                ox, oy, ow, oh = out[nm]
+                x, y = min(ox, x), min(oy, y)
+                w, h = max(ox + ow, x + w) - x, max(oy + oh, y + h) - y
+            out[nm] = (x, y, w, h)
+        return out
+
+    def column_rects(keys, rects):
+        cols = []
+        for c in range(4):
+            boxes = [rects[k] for k in keys[c * 4:c * 4 + 4] if k != "-" and k in rects]
+            if not boxes:
+                cols.append(None)
+                continue
+            x0, y0 = max(0, min(b[0] for b in boxes) - 6), max(0, min(b[1] for b in boxes) - 6)
+            x1, y1 = min(P.W, max(b[0] + b[2] for b in boxes) + 6), min(P.H, max(b[1] + b[3] for b in boxes) + 6)
+            cols.append("%d %d %d %d" % (x0, y0, x1 - x0, y1 - y0))
+        while cols and cols[-1] is None:
+            cols.pop()
+        return [r or "0 0 0 0" for r in cols]
+
+    for p in tui["pageData"]["tabs"]:
+        ti = p.get("fnKeyIndex")
+        if ti is None or not (0 <= ti < len(P.TABS)) or P.TABS[ti] not in pages:
+            continue
+        if 0 <= p["fnKeySubIndex"] < len(P.QLINKS.get(ti, [])):
+            p["qlinkBoundsData"] = column_rects(P.QLINKS[ti][p["fnKeySubIndex"]], kid_rects(pages[P.TABS[ti]]))
+
     json.dump(tui, open(tui_path, "w"), indent=1)
     for f in os.listdir(skin):
         if f.endswith(".png") and f not in sk.used:
