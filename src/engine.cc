@@ -1047,7 +1047,10 @@ void beads_block(Inst* s, const float* L, const float* R, float* wl, float* wr, 
   beads::FloatFrame in[kBlock], out[kBlock];
   for (int i = 0; i < n; ++i) { in[i].l = L[i]; in[i].r = R[i]; }
   g.Process(beads::SEED_BUTTON_STATE_OFF, seed, freeze, density, p, mixp, in, out, n);
-  const float makeup = 1.2f;   // makeup gain: a starting value, to be tuned by ear
+  // The module's wet carries a fixed x1.5 post-gain against a x0.75 dry (hot by design inside
+  // its own crossfade). ET's dry bypasses Beads at unity, so the 1.5 must come out: wet gain
+  // 1.0 x the source level, a level-neutral MIX sweep (was 1.2 x 1.5 = +5 dB over dry).
+  const float makeup = 1.0f / 1.5f;
   for (int i = 0; i < n; ++i) { wl[i] = out[i].l * makeup * kenv; wr[i] = out[i].r * makeup * kenv; }
 }
 
