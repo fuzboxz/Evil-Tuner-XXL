@@ -16,7 +16,8 @@ SAN="-fsanitize=address,undefined -fno-omit-frame-pointer"
 mkdir -p build/hosttest
 OBJS=""
 for f in $ENGINE_SRCS; do o=build/hosttest/$(echo $f | tr / _).o; g++ -std=gnu++17 -O1 -g -w $SAN $DEFS $INCS -I$W -Ibuild -c $f -o $o; OBJS="$OBJS $o"; done
-for f in $DF_SRCS $CL_SRCS; do o=build/hosttest/$(echo $f | tr / _).o; [ -f $o ] || g++ -std=gnu++11 -O2 -g -w $DEFS $INCS -c $f -o $o; OBJS="$OBJS $o"; done
+for f in $BD_SRCS; do o=build/hosttest/$(echo $f | tr / _).o; g++ -std=gnu++17 -O1 -g -w $SAN $DEFS $INCS -c $f -o $o; OBJS="$OBJS $o"; done
+for f in $DF_SRCS $CL_SRCS; do o=build/hosttest/$(echo $f | tr / _).o; [ -f $o ] || g++ -std=gnu++11 -O2 -g -w -Wno-c++11-narrowing -Wno-narrowing $DEFS $INCS -c $f -o $o; OBJS="$OBJS $o"; done
 gcc -std=gnu11 -O1 -g $SAN -w -Ibuild -I$W -DHAS_DISPLAY_REV=1 -DHAS_SONG_POS=1 -DPARAM_TEXT_MAX=64 -c $W/vst2_wrap.c -o build/hosttest/wrap.o
 gcc -O1 -g $SAN -w -Ibuild -c $T/host_test.c -o build/hosttest/ht.o
 g++ $SAN build/hosttest/ht.o build/hosttest/wrap.o $OBJS -ldl -lpthread -lm -o build/hosttest/host_test
@@ -33,7 +34,7 @@ python3 -m http.server $PORT --bind 127.0.0.1 --directory "$SRV" >/dev/null 2>&1
 SPID=$!
 trap 'kill $SPID 2>/dev/null; rm -rf "$SRV"' EXIT
 sleep 1
-build/host/host build/host/plugin /tmp/et_test.wav 26 url:http://127.0.0.1:$PORT/test.mp3 \
+build/host/host build/host/plugin /tmp/et_test.wav 34 url:http://127.0.0.1:$PORT/test.mp3 \
   at:3 mix=0.8 grains=0.7 cloud=0.5 spread=0.6 pitch=0.75 \
   at:5 press:ft_dual cutoff=0.3 reso=0.6 char_mode=6 \
   at:7 press:sat_on sat_type=6 sat_amt=0.7 \
@@ -43,12 +44,17 @@ build/host/host build/host/plugin /tmp/et_test.wav 26 url:http://127.0.0.1:$PORT
   at:14 press:capture at:14.5 stretch=0 stretch_amt=0.3 press:do_stretch \
   at:18 tape_mix=0.7 press:to_grains \
   at:19 press:keys note:60:100 note:67:90 osc_lvl=0.6 at:21 note:60:0 note:67:0 \
-  at:22 press:random press:freeze verb_type=2 sat_type=4 at:24 show:tape_txt | tail -4
+  at:22 press:random press:freeze verb_type=2 sat_type=4 at:24 show:tape_txt \
+  at:25 press:keys \
+  at:26 engine=2 mix=0.8 pos=0.1 size=0.4 shape=0.5 grains=0.85 spread=0.4 cloud=0.3 detune=0.2 \
+  at:28 press:freeze at:29 press:freeze \
+  at:30 shape=0.9 at:30.5 cl_mode=1 at:31 spread=0.9 cl_mode=3 grain_sync=2 scale=3 at:31.5 spread=1 cl_mode=5 scale=7 \
+  at:32 engine=0 | tail -4
 python3 - <<'PY'
 import wave, numpy as np, sys
 w = wave.open('/tmp/et_test.wav'); d = np.frombuffer(w.readframes(w.getnframes()), np.int16).reshape(-1, 2) / 32768
 ok = True
-for s in range(1, 26):
+for s in range(1, 34):
     seg = d[s * 44100:(s + 1) * 44100]
     rms = float(np.sqrt((seg ** 2).mean()))
     if not np.isfinite(rms) or rms < 1e-4 or rms > 0.9: ok = False; print("FAIL second %d rms %.4f" % (s, rms))

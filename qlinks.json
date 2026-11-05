@@ -56,162 +56,106 @@
      "n": 2,
      "qlinkPage": 1,
      "knob": 2,
-     "key": "cl_mode",
-     "name": "CLOUDS MODE"
+     "key": "pos",
+     "name": "POSITION"
     },
     {
      "n": 3,
      "qlinkPage": 1,
      "knob": 3,
-     "key": "pos",
-     "name": "POSITION"
+     "key": "size",
+     "name": "SIZE"
     },
     {
      "n": 4,
      "qlinkPage": 1,
      "knob": 4,
-     "key": "size",
-     "name": "SIZE"
+     "key": "pitch",
+     "name": "PITCH"
     },
     {
      "n": 5,
      "qlinkPage": 1,
      "knob": 5,
-     "key": "pitch",
-     "name": "PITCH"
+     "key": "grains",
+     "name": "GRAINS"
     },
     {
      "n": 6,
      "qlinkPage": 1,
      "knob": 6,
-     "key": "scale",
-     "name": "SCALE"
+     "key": "cloud",
+     "name": "CLOUD"
     },
     {
      "n": 7,
      "qlinkPage": 1,
      "knob": 7,
-     "key": "grains",
-     "name": "GRAINS"
+     "key": "detune",
+     "name": "DETUNE"
     },
     {
      "n": 8,
      "qlinkPage": 1,
      "knob": 8,
-     "key": "grain_sync",
-     "name": "GRAIN SYNC"
-    },
-    {
-     "n": 9,
-     "qlinkPage": 2,
-     "knob": 1,
-     "key": "spread",
-     "name": "SPREAD"
-    },
-    {
-     "n": 10,
-     "qlinkPage": 2,
-     "knob": 2,
-     "key": "cloud",
-     "name": "CLOUD"
-    },
-    {
-     "n": 11,
-     "qlinkPage": 2,
-     "knob": 3,
-     "key": "detune",
-     "name": "DETUNE"
-    },
-    {
-     "n": 12,
-     "qlinkPage": 2,
-     "knob": 4,
      "key": "shape",
      "name": "SHAPE"
     },
     {
-     "n": 13,
-     "qlinkPage": 2,
-     "knob": 5,
+     "n": 9,
+     "qlinkPage": 1,
+     "knob": 9,
      "key": "cutoff",
      "name": "CUTOFF"
     },
     {
-     "n": 14,
-     "qlinkPage": 2,
-     "knob": 6,
+     "n": 10,
+     "qlinkPage": 1,
+     "knob": 10,
      "key": "reso",
      "name": "RESONANCE"
     },
     {
-     "n": 15,
-     "qlinkPage": 2,
-     "knob": 7,
+     "n": 11,
+     "qlinkPage": 1,
+     "knob": 11,
      "key": "mix",
      "name": "GRAIN MIX"
     },
     {
-     "n": 16,
-     "qlinkPage": 2,
-     "knob": 8,
+     "n": 12,
+     "qlinkPage": 1,
+     "knob": 12,
      "key": "volume",
      "name": "VOLUME"
     },
     {
-     "n": 17,
-     "qlinkPage": 3,
-     "knob": 1,
-     "key": "flt_env",
-     "name": "FILTER ENV"
-    },
-    {
-     "n": 18,
-     "qlinkPage": 3,
-     "knob": 2,
+     "n": 13,
+     "qlinkPage": 1,
+     "knob": 13,
      "key": "osc_lvl",
      "name": "OSC LEVEL"
     },
     {
-     "n": 19,
-     "qlinkPage": 3,
-     "knob": 3,
-     "key": null,
-     "name": null
+     "n": 14,
+     "qlinkPage": 1,
+     "knob": 14,
+     "key": "scale",
+     "name": "SCALE"
     },
     {
-     "n": 20,
-     "qlinkPage": 3,
-     "knob": 4,
-     "key": null,
-     "name": null
+     "n": 15,
+     "qlinkPage": 1,
+     "knob": 15,
+     "key": "grain_sync",
+     "name": "GRAIN SYNC"
     },
     {
-     "n": 21,
-     "qlinkPage": 3,
-     "knob": 5,
-     "key": null,
-     "name": null
-    },
-    {
-     "n": 22,
-     "qlinkPage": 3,
-     "knob": 6,
-     "key": null,
-     "name": null
-    },
-    {
-     "n": 23,
-     "qlinkPage": 3,
-     "knob": 7,
-     "key": null,
-     "name": null
-    },
-    {
-     "n": 24,
-     "qlinkPage": 3,
-     "knob": 8,
-     "key": null,
-     "name": null
+     "n": 16,
+     "qlinkPage": 1,
+     "knob": 16,
+     "key": "spread",
+     "name": "SPREAD"
     }
    ]
   },
@@ -520,115 +464,52 @@
     },
     {
      "n": 9,
-     "qlinkPage": 2,
-     "knob": 1,
+     "qlinkPage": 1,
+     "knob": 9,
      "key": "l3_rate",
      "name": "LFO3 RATE"
     },
     {
      "n": 10,
-     "qlinkPage": 2,
-     "knob": 2,
+     "qlinkPage": 1,
+     "knob": 10,
      "key": "l3_depth",
      "name": "LFO3 DEPTH"
     },
     {
      "n": 11,
-     "qlinkPage": 2,
-     "knob": 3,
+     "qlinkPage": 1,
+     "knob": 11,
      "key": "l3_wave",
      "name": "LFO3 WAVE"
     },
     {
      "n": 12,
-     "qlinkPage": 2,
-     "knob": 4,
+     "qlinkPage": 1,
+     "knob": 12,
      "key": "l3_dest",
      "name": "LFO3 DEST"
     },
     {
      "n": 13,
-     "qlinkPage": 2,
-     "knob": 5,
+     "qlinkPage": 1,
+     "knob": 13,
      "key": "fol_amt",
      "name": "FOLLOW AMT"
     },
     {
      "n": 14,
-     "qlinkPage": 2,
-     "knob": 6,
+     "qlinkPage": 1,
+     "knob": 14,
      "key": "fol_spd",
      "name": "FOLLOW SPEED"
     },
     {
      "n": 15,
-     "qlinkPage": 2,
-     "knob": 7,
+     "qlinkPage": 1,
+     "knob": 15,
      "key": "fol_dest",
      "name": "FOLLOW DEST"
-    },
-    {
-     "n": 16,
-     "qlinkPage": 2,
-     "knob": 8,
-     "key": null,
-     "name": null
-    },
-    {
-     "n": 17,
-     "qlinkPage": 3,
-     "knob": 1,
-     "key": "atk",
-     "name": "ATTACK"
-    },
-    {
-     "n": 18,
-     "qlinkPage": 3,
-     "knob": 2,
-     "key": "dec",
-     "name": "DECAY"
-    },
-    {
-     "n": 19,
-     "qlinkPage": 3,
-     "knob": 3,
-     "key": "sus",
-     "name": "SUSTAIN"
-    },
-    {
-     "n": 20,
-     "qlinkPage": 3,
-     "knob": 4,
-     "key": "rel",
-     "name": "RELEASE"
-    },
-    {
-     "n": 21,
-     "qlinkPage": 3,
-     "knob": 5,
-     "key": null,
-     "name": null
-    },
-    {
-     "n": 22,
-     "qlinkPage": 3,
-     "knob": 6,
-     "key": null,
-     "name": null
-    },
-    {
-     "n": 23,
-     "qlinkPage": 3,
-     "knob": 7,
-     "key": null,
-     "name": null
-    },
-    {
-     "n": 24,
-     "qlinkPage": 3,
-     "knob": 8,
-     "key": null,
-     "name": null
     }
    ]
   }

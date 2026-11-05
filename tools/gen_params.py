@@ -131,7 +131,7 @@ KBD = [("kb_%s" % c.lower(), c) for c in "1234567890QWERTYUIOPASDFGHJKLZXCVBNM"]
       [("kb_space", "SPACE"), ("kb_del", "DEL"), ("kb_clr", "CLEAR"), ("kb_go", "GO"), ("kb_close", "CLOSE")]
 
 # ---- 0.2.0, appended (MPC keeps a project's values by parameter index: never insert above)
-ENGINES = ["XXL GRAINS", "CLOUDS"]
+ENGINES = ["XXL GRAINS", "CLOUDS", "BEADS"]
 CLOUDS_MODES = ["GRANULAR", "STRETCH", "LOOPING DELAY", "SPECTRAL", "OLIVERB", "RESONESTOR"]
 SCALES = ["CHROMATIC", "MAJOR", "MINOR", "DORIAN", "PENTATONIC", "MINOR PENTA", "5THS + OCT", "OCTAVES"]
 GRAIN_SYNC = ["FREE", "1/4", "1/8", "1/16", "1/32", "1/8T", "1/16T"]
@@ -139,7 +139,10 @@ KNOBS2 = [("engine", "ENGINE", 0, ENGINES), ("cl_mode", "CLOUDS MODE", 0, CLOUDS
           ("grain_sync", "GRAIN SYNC", 0, GRAIN_SYNC)]
 KEYS2 = [("send", "SEND"), ("rec_out", "REC OUT"), ("save", "SAVE"), ("auto_save", "AUTO SAVE")]
 # the PET knobs whose name follows the engine and Clouds' mode ("<key>_name")
-DYNAMIC_NAMES = ["pos", "size", "pitch", "grains", "spread", "cloud", "detune", "shape", "mix"]
+# cl_mode/grain_sync/scale too: in BEADS they read MEDIA / SHAPE RND / PITCH RND (engine.cc's
+# knob_name + value_text); without the flags the host shows the static CLOUDS option text.
+DYNAMIC_NAMES = ["pos", "size", "pitch", "grains", "spread", "cloud", "detune", "shape", "mix",
+                 "cl_mode", "grain_sync", "scale"]
 
 TEXTS = [("st_name", "STATION"), ("st_title", "NOW PLAYING"), ("st_info", "INFO"), ("page_txt", "PAGE"),
          ("query", "SEARCH TEXT"), ("phone_txt", "PHONE"), ("air_txt", "AIRPLAY"), ("tape_txt", "TAPE"),
@@ -152,6 +155,8 @@ def knob_entry(key, name, d, opts):
     e = {"key": key, "name": name, "default": d, "kind": "KNOB"}
     if opts:
         e["options"] = opts
+        if key in DYNAMIC_NAMES:
+            e["dynamic_display"] = True   # BEADS re-reads these knobs (engine.cc value_text)
     else:
         e.update({"min": 0, "max": 1, "dynamic_display": True})   # value text from the engine ("<key>_display")
     if key in DYNAMIC_NAMES:
@@ -161,22 +166,27 @@ def knob_entry(key, name, d, opts):
 
 def params():
     out = []
+    # "poll": true on every string param: since mpc-vst-plugins bf1054ce a string param the layout.conf
+    # doesn't mention is never polled (gen_vst.py's no_poll rule), but ET's pages are drawn by
+    # tools/panel_art.py OUTSIDE layout.conf, which only names the top-row knobs -- without this the
+    # wrapper polls nothing, so no "<key>_on" LED and no readout text reaches the host (the 0.2.0 build
+    # polled them all; on the device the radio page's PLAY/STOP/SYNC and the station rows went dark).
     for key, name, d, opts in KNOBS:
         out.append(knob_entry(key, name, d, opts))
     for key, name in KEYS + KBD:
-        out.append({"key": key, "name": name, "display": "string", "min": 0, "max": 1, "default": 0, "kind": "KEY"})
+        out.append({"key": key, "name": name, "display": "string", "min": 0, "max": 1, "default": 0, "poll": True, "kind": "KEY"})
     for key, name in TEXTS:
-        out.append({"key": key, "name": name, "display": "string", "min": 0, "max": 1, "default": 0, "kind": "TEXT"})
+        out.append({"key": key, "name": name, "display": "string", "min": 0, "max": 1, "default": 0, "poll": True, "kind": "TEXT"})
     for i in range(NUM_ROWS):
         out.append({"key": "row%d" % (i + 1), "name": "STATION %d" % (i + 1), "display": "string", "min": 0, "max": 1,
-                    "default": 0, "kind": "ROW"})
+                    "default": 0, "poll": True, "kind": "ROW"})
     for key, name, opts in VIEWS:
         out.append({"key": key, "name": name, "options": opts, "default": 0, "kind": "VIEW"})
     # 0.2.0
     for key, name, d, opts in KNOBS2:
         out.append(knob_entry(key, name, d, opts))
     for key, name in KEYS2:
-        out.append({"key": key, "name": name, "display": "string", "min": 0, "max": 1, "default": 0, "kind": "KEY"})
+        out.append({"key": key, "name": name, "display": "string", "min": 0, "max": 1, "default": 0, "poll": True, "kind": "KEY"})
     return out
 
 

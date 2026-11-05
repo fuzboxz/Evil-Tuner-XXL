@@ -436,7 +436,10 @@ def definition(key, actions, parts, ignore=False):
         "version": 4, "actions": actions,
         "backgroundData": {"version": 1, "focussed": {"version": 1, "colour": "0", "image": ""},
                            "unfocussed": {"version": 1, "colour": "0", "image": ""}},
-        "ignoreMousePresses": ignore, "disableCoarseDataWheel": False, "repeats": 1, "hideQLinkBounds": True,
+        # hideQLinkBounds must be False on EVERY definition, controls included: the per-bank
+        # Q-Link outline is suppressed per-component (RMXXXL on device: all defs false; ET's
+        # True on etKnob/etKey defs is why only the first, page-level box ever rendered)
+        "ignoreMousePresses": ignore, "disableCoarseDataWheel": False, "repeats": 1, "hideQLinkBounds": False,
         "componentsData": parts}}
 
 
@@ -469,7 +472,7 @@ def name_label(x, y, w, h, px, colour):
                                  "type": "Name", "handleName": "Data"}, bounds_s(x, y, w, h))
 
 
-def placed(dkey, name, index, rect, focus_on=True, views=None, view_index=None):
+def placed(dkey, name, index, rect, focus_on=True, views=None, view_index=None, engine_idx=None):
     x, y, w, h = rect
     c = {"version": 2,
          "componentData": {"version": 1, "name": name, "type": dkey, "data": {"version": 1, "handleName": "Data"}},
@@ -478,8 +481,8 @@ def placed(dkey, name, index, rect, focus_on=True, views=None, view_index=None):
                     "whenVisible": "Always", "boundsType": "Absolute", "bounds": bounds_s(x, y, w, h),
                     "additionalInvalidatingHandles": []}}
     if views:   # shown only while the view is one of these (MPC's IndexedEnabling)
-        c["bounds"]["additionalInvalidatingHandles"] = ["IndexedEnabling/%d/%d/Parameter %d" % (v, VIEW_COUNT, view_index)
-                                                        for v in views]
+        c["bounds"]["additionalInvalidatingHandles"] += ["IndexedEnabling/%d/%d/Parameter %d" % (v, VIEW_COUNT, view_index)
+                                                          for v in views]
     return c
 
 
@@ -550,8 +553,25 @@ def build_page(sk, tab, preview=None):
     vcol = "f29a2e" if classic else "e4e4e0"
     shown = bg.copy() if preview is not None else None
 
+    # knobs with no Beads counterpart: while ENGINE is BEADS they are covered by a patch of the
+    # page background (drawn ON TOP: hides the knob AND its background; the image also blocks
+    # touches). Single-entry IndexedEnabling on the ENGINE param -- the same proven pattern the
+    # page views use. (Multi-entry lists are ANDed by MPC and hide a component always.)
+    # PET knobs without a Beads counterpart used to be covered while BEADS is selected;
+    # since they carry the module's four AMOUNT pots (randomization: engine.cc) they are
+    # live -- nothing to cover. Keep the mechanism for a future unmapped knob.
+    BEADS_UNMAPPED = set()
+    # CLOUDS MODE is a CLOUDS-engine setting (and BEADS' MEDIA): in XXL it does nothing --
+    # covered there (engine 0), with the owner-sized 7 px pad of the old cover set
+    XXL_UNMAPPED = {"cl_mode"}
+    covers = []          # (rect, engine value the cover shows in)
+
     def place(dkey, key, rect, views=None, focus_on=True):
         kids.append(placed(dkey, key, sk.index[key], rect, focus_on, views, view_i))
+        if key in BEADS_UNMAPPED:
+            covers.append((rect, 2))
+        if key in XXL_UNMAPPED:
+            covers.append((rect, 0))
 
     # ---- knobs: a filmstrip and MPC's value text under it
     for t, key, cx, cy, s, look in P.KNOBS:
@@ -686,6 +706,25 @@ def build_page(sk, tab, preview=None):
         if shown is not None:
             ImageDraw.Draw(shown).text((x + w / 2, y + h / 2), preview.get("readout", (0, "", 0))[1],
                                        font=ImageFont.truetype(TITILLIUM_B, 34), fill=AMBER + (255,), anchor="mm")
+    # the BEADS covers: last (topmost) kids -- a FLAT panel-coloured rectangle over each
+    # unmapped knob, visible only while ENGINE is BEADS (single-entry IndexedEnabling,
+    # the pattern the page views use; multi-entry lists are ANDed and hide always).
+    # Flat fill, not a crop of the page background: the background art carries the dotted
+    # tick arc knob_ticks() bakes around every knob position (radius 0.64*s), and a crop
+    # would reproduce it. Padded well past the knob component so the arc is swallowed too.
+    e_idx = sk.index.get("engine")
+    PANEL = (27, 27, 27)   # the section panels' recess fill (modern_bg) -- the lighter gray behind the knobs
+    for i, (rect, eng) in enumerate(covers):
+        PAD = 7   # the owner-sized pad of the old cover set (just past the tick arc's 13 px reach)
+        x, y, w, h = rect
+        x0, y0 = max(0, x - PAD), max(0, y - PAD)
+        x1, y1 = min(P.W, x + w + PAD), min(P.H, y + h + PAD)
+        patch = Image.new("RGB", (x1 - x0, y1 - y0), PANEL)
+        name = sk.save(patch, "et_%d_beadscover_%d.png" % (tab, i))
+        kid = sub("Cover", "Image", {"version": 2, "imageType": "Regular", "colour": "0", "image": name},
+                  bounds_s(x0, y0, x1 - x0, y1 - y0))
+        kid["bounds"]["additionalInvalidatingHandles"] = ["IndexedEnabling/%d/3/Parameter %d" % (eng, e_idx)]
+        kids.append(kid)
     return bg, kids, shown
 
 
@@ -717,10 +756,63 @@ def main(skin):
                                             "unfocussed": {"version": 1, "colour": "ff101010", "image": ""}}
             keep.append(e)
     cdefs["localComponentDefinitions"] = keep + sk.defs
+
+    # ---- Q-Link bounds: shadow_skin computed qlinkBoundsData from layout.conf's placeholder knob
+    # coordinates, but panel_art is what places the real controls -- rewrite each Q-Link page's
+    # column boxes from the actual placed geometry. Columns follow shadow_skin's qlink_for_slot
+    # (KNOB_QLINKS = 13,9,5,1,14,10,6,2): keys 0-3 = grid column 1, 4-7 = column 2, ...
+    def kid_rects(kids):
+        out = {}
+        for k in kids:
+            cd = k.get("componentData", {})
+            nm, b = cd.get("name"), k.get("bounds", {}).get("bounds")
+            if not nm or not b or cd.get("type") == "Image":
+                continue
+            x, y, w, h = map(int, b.split())
+            if nm in out:
+                ox, oy, ow, oh = out[nm]
+                x, y = min(ox, x), min(oy, y)
+                w, h = max(ox + ow, x + w) - x, max(oy + oh, y + h) - y
+            out[nm] = (x, y, w, h)
+        return out
+
+    def column_rects(keys, rects):
+        # One rect per Q-Link bank (keys 0-3 = bank 1 = Q1-4, 4-7 = bank 2 = Q5-8, ...), matching
+        # the RowTopDown map: stock (DrumSynthMulti) renders every bank's rect; an empty bank is
+        # "0 0 0 0" (no box). Always four entries, positionally.
+        cols = []
+        for c in range(4):
+            boxes = [rects[k] for k in keys[c * 4:c * 4 + 4] if k != "-" and k in rects]
+            if not boxes:
+                cols.append("0 0 0 0")
+                continue
+            x0, y0 = max(0, min(b[0] for b in boxes) - 6), max(0, min(b[1] for b in boxes) - 6)
+            x1, y1 = min(P.W, max(b[0] + b[2] for b in boxes) + 6), min(P.H, max(b[1] + b[3] for b in boxes) + 6)
+            cols.append("%d %d %d %d" % (x0, y0, x1 - x0, y1 - y0))
+        return cols
+
+    for p in tui["pageData"]["tabs"]:
+        ti = p.get("fnKeyIndex")
+        if ti is None or not (0 <= ti < len(P.TABS)) or P.TABS[ti] not in pages:
+            continue
+        if 0 <= p["fnKeySubIndex"] < len(P.QLINKS.get(ti, [])):
+            p["qlinkBoundsData"] = column_rects(P.QLINKS[ti][p["fnKeySubIndex"]], kid_rects(pages[P.TABS[ti]]))
+
     json.dump(tui, open(tui_path, "w"), indent=1)
     for f in os.listdir(skin):
         if f.endswith(".png") and f not in sk.used:
             os.remove(os.path.join(skin, f))
+    # the Instruments-browser tile (Plugin Skins/browser_images/soundsmode.png, 270x110 -- MPC's
+    # Sounds > INSTRUMENTS page): the RADIO page's live preview, cropped to its identity band
+    # (the station list, the two big knobs, the amber window), with the name across the middle.
+    import preview as pv
+    _, _, shown = build_page(sk, 0, pv.SAMPLE)
+    band = shown.crop((0, 94, P.W, 615)).resize((270, 110), Image.LANCZOS)
+    dd = ImageDraw.Draw(band)
+    dd.text((135, 55), "Evil Tuner XXL", font=ImageFont.truetype(TITILLIUM_B, 26),
+            fill=(255, 255, 255, 255), anchor="mm", stroke_width=2, stroke_fill=(12, 8, 4, 255))
+    os.makedirs(os.path.join(skin, "browser_images"), exist_ok=True)
+    band.convert("RGB").save(os.path.join(skin, "browser_images", "soundsmode.png"))
     print("panel_art: %d definitions, %d pictures" % (len(sk.defs), len(sk.used)))
 
 

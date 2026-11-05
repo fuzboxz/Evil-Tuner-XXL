@@ -23,6 +23,12 @@ extern "C" {
 #include "reverbs.h"
 #include "param_defs.h"
 #include "../third_party/loop-saboteur/Source/OutputStage.h"
+// Beads' headers parse BEFORE Clouds': the two vendored stmlib copies share include guards, and Beads' copy is a
+// superset (same bodies for everything this TU's Clouds inline code uses). Clouds' own .cc files are separate TUs
+// with their own headers, so Clouds' DSP compiles exactly as before.
+#include "beads/dsp/processor.h"
+
+#include "beads_src.h"   // 44.1<->32 kHz: VINTAGE DIGITAL at its true rate
 #include "clouds/dsp/granular_processor.h"
 #include <pthread.h>
 #include <time.h>
@@ -128,6 +134,20 @@ struct Inst {
   volatile bool cl_quit = false;
   pthread_mutex_t cl_mu;
   pthread_cond_t cl_wake;
+  // ---- Beads (0.3.0): the BEADS engine. No Prepare() and no helper thread: everything happens in Process.
+  beads::Processor* bd = nullptr;
+  uint8_t* bd_delay1 = nullptr;       // 512 KB, sliced into beads.cc's first two 256 KB banks
+  uint8_t* bd_delay2 = nullptr;       // 256 KB, beads.cc's third bank
+  uint16_t* bd_verb = nullptr;        // 32768 words: the reverb's FxEngine<32768> clears all of them on Init
+  float (*bd_shadow)[2] = nullptr;    // the last ~5 s fed to Beads -- what its buffer holds (media-switch carry-over)
+  et::RationalSRC* bd_dn = nullptr;   // per instance: 44.1->32 k and back, VINTAGE DIGITAL only
+  et::RationalSRC* bd_up = nullptr;
+  int bd_pending = -1;               // media index waiting for the fade-out before the reconfigure
+  float bd_wfade = 1.f;              // the wet fade across a media switch (~10 ms each way)
+  long bd_shadow_w = 0;               // absolute frames recorded into the shadow
+  long bd_replay = -1;                // absolute shadow frame being re-fed; -1 = idle
+  float bd_mix = 0.f;                 // fades BEADS in / out when the engine changes
+  int bd_cfg = 0;                     // the applied CLOUDS MODE option: BEADS media + mono
   int last_note = -1;                 // KEYS: the note Clouds plays (the last one pressed)
   uint32_t clock = 0;                 // blocks
   uint32_t display_rev = 1;
@@ -135,6 +155,10 @@ struct Inst {
 };
 
 inline float knob(const Inst* s, int p) { return s->v[p]; }
+// PARAM VALUE UNITS: a continuous knob's s->v is its 0..1 position; an option knob's s->v is
+// its option INDEX (0..nopts-1) -- opt() reads the index, and anything wanting a 0..1 depth
+// from an option knob must divide by (nopts - 1) (the BEADS RND knobs got that wrong once:
+// every step but the first read as full depth, and the display showed index x 100 %).
 inline int opt(const Inst* s, int p) { return (int)lroundf(s->v[p]); }
 inline float E(const Inst* s, int p) { return s->eff[p]; }
 
@@ -146,7 +170,8 @@ std::string value_text(const Inst* s, int p) {
   char b[64];
   const ParamDef& d = PARAM_DEFS[p];
   float v = s->v[p];
-  if (d.nopts) return d.opts[(int)lroundf(v)];
+  bool beads_early = opt(s, P_ENGINE) == 2 && (p == P_CL_MODE || p == P_GRAIN_SYNC || p == P_SCALE);
+  if (d.nopts && !beads_early) return d.opts[(int)lroundf(v)];   // option text -- unless BEADS re-reads the knob
   auto pct = [&](float x) { snprintf(b, sizeof b, "%d%%", (int)lroundf(x * 100.f)); return std::string(b); };
   auto ms = [&](float m) {
     if (m >= 1000.f) snprintf(b, sizeof b, "%.2f s", m / 1000.f);
@@ -154,8 +179,19 @@ std::string value_text(const Inst* s, int p) {
     return std::string(b);
   };
   bool clouds = opt(s, P_ENGINE) == 1;
-  if (clouds && (p == P_POS || p == P_SIZE || p == P_GRAINS || p == P_SHAPE || p == P_SPREAD || p == P_CLOUD || p == P_DETUNE)) {
-    if (p == P_GRAINS && opt(s, P_GRAIN_SYNC) && opt(s, P_CL_MODE) == 0) {
+  bool beads = opt(s, P_ENGINE) == 2;
+  // BEADS: the three option knobs read as randomization depth in percent, and CLOUDS MODE
+  // as Beads' media (the module's settings-menu flavors; its last two steps are mono).
+  // These MUST come before the nopts early-return path above -- the knobs have options.
+  if (beads && p == P_CL_MODE) {
+    static const char* kMediaName[6] = {"DIGITAL", "VINTAGE", "CLEAN TAPE", "DIRTY TAPE",
+                                        "MONO DIGITAL", "MONO DIRTY"};
+    return kMediaName[std::min((int)lroundf(v), 5)];
+  }
+  if (beads && (p == P_GRAIN_SYNC || p == P_SCALE))
+    return pct(v / (d.nopts - 1));   // v is the option index: 0,17,33..100, not 0,100..600
+  if ((clouds || beads) && (p == P_POS || p == P_SIZE || p == P_GRAINS || p == P_SHAPE || p == P_SPREAD || p == P_CLOUD || p == P_DETUNE)) {
+    if (clouds && p == P_GRAINS && opt(s, P_GRAIN_SYNC) && opt(s, P_CL_MODE) == 0) {
       snprintf(b, sizeof b, "CHANCE %d%%", (int)lroundf((0.15f + 0.85f * v) * 100.f));
       return b;
     }
@@ -234,6 +270,23 @@ std::string value_text(const Inst* s, int p) {
 // the PET knobs' names: XXL GRAINS' own, or what the knob does in Clouds' mode (the Clouds and Parasites manuals' names,
 // as RMXXXL shows them)
 const char* knob_name(const Inst* s, int p) {
+  if (opt(s, P_ENGINE) == 2) {   // BEADS: the module's own pot names, per the engine mapping
+    switch (p) {
+      case P_POS: return "TIME";
+      case P_SIZE: return "SIZE";
+      case P_SHAPE: return "SHAPE";
+      case P_GRAINS: return "DENSITY";
+      case P_PITCH: return "PITCH";
+      case P_SPREAD: return "TIME RND";      // three of the four PET slots without a
+      case P_CL_MODE: return "MEDIA";         // Beads counterpart carry the randomization,
+      case P_GRAIN_SYNC: return "SHAPE RND";  // the fourth (CLOUDS MODE) selects Beads'
+      case P_SCALE: return "PITCH RND";       // media: the module's settings-menu flavors
+      case P_CLOUD: return "FEEDBACK";
+      case P_DETUNE: return "REVERB";
+      case P_MIX: return "BEADS MIX";
+      default: return PARAM_DEFS[p].name;
+    }
+  }
   if (opt(s, P_ENGINE) != 1) return PARAM_DEFS[p].name;
   int m = std::max(0, std::min(5, opt(s, P_CL_MODE)));
   //                                   GRANULAR       STRETCH       LOOPING DELAY  SPECTRAL      OLIVERB        RESONESTOR
@@ -947,6 +1000,178 @@ void clouds_block(Inst* s, const float* L, const float* R, float* wl, float* wr,
   if (s->cl_thread_on) pthread_cond_signal(&s->cl_wake);
 }
 
+// the wet signal of Beads for this block into wl / wr (the BEADS engine). kenv: the keys' envelope (1 without KEYS).
+// The media is fixed MEDIA_DIGITAL stereo (set by Processor::Init): ratio 1, so a block of any size is fine.
+// Beads' PITCH pot law (cv_reader.h LAW_DETUNE): the raw 0..1 knob snaps to musical intervals
+// -- 0, +/-1, +/-3, +/-4, +/-7, +/-12, +/-24 semitones, crossfaded between adjacent steps -- so the
+// module's pitch turns in musical steps, not continuously. Faithful port of that curve.
+static float beads_pitch_law(float v) {
+  float detune = 2.0f * clampf(v, 0.f, 1.f) - 1.0f;
+  float sign = detune < 0.0f ? -1.0f : 1.0f;
+  detune = detune * sign * 6.0f;
+  int di = (int)detune;
+  float df = detune - di;
+  static const float intervals[8] = {0.0f, 1.0f, 3.0f, 4.0f, 7.0f, 12.0f, 24.0f, 24.0f};
+  df = std::max((df - 0.33333333f) * 1.5f, 0.0f);
+  float x = df * df * (3.0f - 2.0f * df);   // SmoothStep
+  return (intervals[di] + (intervals[di + 1] - intervals[di]) * x) * sign;
+}
+
+void beads_block(Inst* s, const float* L, const float* R, float* wl, float* wr, int n, float kenv) {
+  beads::Processor& g = *s->bd;
+  beads::Parameters p;
+  // ET-knob -> Beads, as faithful to the module as the PET page allows (owner direction):
+  // exact 1:1 for TIME/SIZE/SHAPE/PITCH/DENSITY (+ FREEZE, KEYS transposes); CLOUD carries
+  // FEEDBACK and DETUNE carries REVERB wet (the CLOUDS precedent in this plugin). The four
+  // slots with no Beads counterpart carry the randomization (TIME/SHAPE/PITCH RND) and
+  // MEDIA -- Beads' settings-menu flavors (see the attenuverter and Configure blocks below).
+  int semis = (int)beads_pitch_law(E(s, P_PITCH)) + (s->keys_mode && s->last_note >= 0 ? s->last_note - 60 : 0);
+  p.time.base = clampf(E(s, P_POS), 0.f, 1.f);
+  p.size.base = clampf(E(s, P_SIZE), 0.f, 1.f);
+  p.shape.base = clampf(E(s, P_SHAPE), 0.f, 1.f);
+  p.pitch.base = clampf((float)semis, -48.f, 48.f);
+  // The four PET slots without a Beads counterpart carry the module's randomization and
+  // media (owner direction): TIME scatters each grain's read position toward uniform across
+  // the buffer, SHAPE scatters envelope shapes (a 0.1 Hz walk in delay mode), PITCH is a
+  // +/-24 st random walk on top of the snapped base. SIZE's slot (CLOUDS MODE) became MEDIA:
+  // the module's settings-menu flavors, with its last two steps as the mono variants.
+  // Configure() is the module's own media switch (processor Reset + reverb flush).
+  static const beads::Processor::Media kMediaOf[6] = {
+      beads::Processor::MEDIA_DIGITAL, beads::Processor::MEDIA_VINTAGE_DIGITAL,
+      beads::Processor::MEDIA_CLEAN_TAPE, beads::Processor::MEDIA_DIRTY_TAPE,
+      beads::Processor::MEDIA_DIGITAL, beads::Processor::MEDIA_DIRTY_TAPE};
+  int mo = opt(s, P_CL_MODE);
+  // The media switch is DEFERRED behind a ~10 ms wet fade (bd_wfade): Configure() flushes the
+  // reverb and resets the engine mid-tail, and the replay re-records the buffer at 8x -- the
+  // live grains would read that as time-scrambled noise for the refill window. So: fade the
+  // wet out, THEN reconfigure and refill (grains silenced, recording continues), fade back in.
+  if (mo != s->bd_cfg) {
+    if (s->bd_pending < 0) s->bd_pending = mo;   // begin the fade-out
+    else s->bd_pending = mo;                     // a later turn while fading retargets
+  } else if (s->bd_pending >= 0) {
+    s->bd_pending = -1;                          // switched back to the applied media: cancel
+  }
+  const bool refilling = s->bd_replay >= 0;
+  const float wfade_tgt = (s->bd_pending >= 0 || refilling) ? 0.f : 1.f;
+  if (s->bd_pending >= 0 && s->bd_wfade <= 0.f) {   // fully faded: apply the switch
+    s->bd_cfg = s->bd_pending;
+    s->bd_pending = -1;
+    g.Configure(kMediaOf[s->bd_cfg], s->bd_cfg >= 4);
+    g.Trim();   // duration_ = 0: the read bound will grow over exactly what is re-recorded
+    s->bd_dn->Reset(); s->bd_up->Reset();   // no frames cross a media switch
+    // carry the material across: the new media's encoding/rate differs (16/12/8-bit, the
+    // tapes at half rate), so the buffer cannot be transplanted -- it is RE-RECORDED. The
+    // shadow ring below holds the last ~5 s of what Beads was fed; replaying it through the
+    // new media's own write path (its SRC filters + encoders) rebuilds the buffer with the
+    // old content, chronology intact, at ~8x real time (~0.6 s). The rest of a larger
+    // buffer is neither repeated nor padded -- it is simply beyond duration(), unread.
+    if (s->bd_shadow) s->bd_replay = std::max(0L, s->bd_shadow_w - 5L * ET_SR);
+  }
+  if (s->bd_mix <= 0.f) {
+    g.Trim();   // a BEADS stint starts a fresh take: TIME tracks this stint's recording
+  }
+  // the option knobs hold their option INDEX in s->v (opt() is lround(v)): normalize by the
+  // count-1 to get the 0..1 depth (clamping the raw index made every step but the first full)
+  p.time.attenuverter = clampf(E(s, P_SPREAD), 0.f, 1.f);
+  p.size.attenuverter = 0.f;
+  p.shape.attenuverter = clampf(E(s, P_GRAIN_SYNC) / (PARAM_DEFS[P_GRAIN_SYNC].nopts - 1), 0.f, 1.f);
+  p.pitch.attenuverter = clampf(E(s, P_SCALE) / (PARAM_DEFS[P_SCALE].nopts - 1), 0.f, 1.f);
+  p.time.cv = p.size.cv = p.shape.cv = p.pitch.cv = 0.f;
+  p.time.has_cv = p.size.has_cv = p.shape.has_cv = p.pitch.has_cv = false;
+  p.monophonic_mode = false;
+  beads::ModulatedParameter density;
+  density.base = clampf(E(s, P_GRAINS), 0.f, 1.f);
+  density.cv = 0.f;
+  beads::ModulatedParameter silence;   // the refill window's live density: record, don't granulate
+  silence.base = 0.f; silence.cv = 0.f;
+  const beads::ModulatedParameter& ldensity = refilling ? silence : density;
+  beads::Processor::MixParameters mixp;
+  mixp.feedback = clampf(E(s, P_CLOUD), 0.f, 1.f);       // CLOUDS precedent: CLOUD = feedback
+  // dry_wet is pinned FULL WET: the module with its DRY/WET pot at wet. The ET MIX knob that
+  // blends the engine bus (render_block: L*(1-mix) + wet*mix) is the single crossfade -- two
+  // stacked crossfaders leaked up to ~28% extra dry at mid positions (audit finding).
+  mixp.dry_wet = 1.f;
+  mixp.reverb_amount = clampf(E(s, P_DETUNE), 0.f, 1.f); // CLOUDS precedent: DETUNE = reverb wet
+  mixp.output_gate = false;
+  const bool vintage = kMediaOf[mo] == beads::Processor::MEDIA_VINTAGE_DIGITAL;
+  // one engine call, SRC-wrapped while VINTAGE (its true 32000): nn host frames go through
+  // the down-converter, Process runs on the 32 k frames, the wet comes back up. lout == 0:
+  // output discarded (the replay pump records into the 32 k buffer, nothing to convert up).
+  auto run = [&](const float* lin, const float* rin2, int nn, const beads::ModulatedParameter& dens,
+                 const bool* frz, const stmlib::GateFlags* sd, float* lout, float* rout) {
+    static float dl[kBlock + 8], dr[kBlock + 8], ol[kBlock], ur[kBlock];
+    static beads::FloatFrame fi[kBlock], fo[kBlock];
+    if (!vintage) {
+      for (int i = 0; i < nn; ++i) { fi[i].l = lin[i]; fi[i].r = rin2[i]; }
+      g.Process(beads::SEED_BUTTON_STATE_OFF, sd, frz, dens, p, mixp, fi, fo, nn);
+      if (lout) for (int i = 0; i < nn; ++i) { lout[i] = fo[i].l; rout[i] = fo[i].r; }
+      return;
+    }
+    s->bd_dn->Push(lin, rin2, nn);
+    int m;
+    while ((m = s->bd_dn->Pull(dl, dr, kBlock)) > 0) {
+      for (int i = 0; i < m; ++i) { fi[i].l = dl[i]; fi[i].r = dr[i]; }
+      g.Process(beads::SEED_BUTTON_STATE_OFF, sd, frz, dens, p, mixp, fi, fo, m);
+      if (lout) {
+        for (int i = 0; i < m; ++i) { ol[i] = fo[i].l; ur[i] = fo[i].r; }
+        s->bd_up->Push(ol, ur, m);
+      }
+    }
+    if (lout) {
+      int k = s->bd_up->Pull(lout, rout, nn);
+      for (; k < nn; ++k) {   // a rounding-short block at start-up: hold the last frame
+        lout[k] = k ? lout[k - 1] : 0.f;
+        rout[k] = k ? rout[k - 1] : 0.f;
+      }
+    }
+  };
+  if (s->bd_replay >= 0 && s->bd_shadow) {
+    // the re-record pump: feed shadow frames through Process with the trigger paths closed
+    // (seed gate LOW, DENSITY 0, freeze forced off so the writes land); output is discarded.
+    static stmlib::GateFlags seed_low[kBlock];
+    static bool nofreeze[kBlock];           // GATE_FLAG_LOW is 0: static zero-init fits both
+    static float pl[kBlock], pr[kBlock];
+    int budget = 8 * n;                     // 8x real time until the shadow is drained
+    while (s->bd_replay < s->bd_shadow_w && budget > 0) {
+      int m = std::min(std::min(kBlock, budget), (int)std::min(s->bd_shadow_w - s->bd_replay, 5L * ET_SR));
+      for (int i = 0; i < m; ++i) {
+        long wi = (s->bd_replay + i) % (5L * ET_SR);
+        pl[i] = s->bd_shadow[wi][0]; pr[i] = s->bd_shadow[wi][1];
+      }
+      run(pl, pr, m, silence, nofreeze, seed_low, nullptr, nullptr);
+      s->bd_replay += m; budget -= m;
+    }
+    if (s->bd_replay >= s->bd_shadow_w) s->bd_replay = -1;
+  }
+  bool freeze[kBlock];
+  stmlib::GateFlags seed[kBlock];
+  for (int i = 0; i < n; ++i) {
+    freeze[i] = s->grains.frozen;
+    // seed gate held high: the free-running internal pulse train (as on the module with SEED
+    // held). LOW silences granular mode entirely -- TriggerGenerator::RenderPulseTrain only
+    // advances while a gate is high, so no grain ever fires (found in review; delay mode --
+    // SIZE at max -- self-clocks and masked it).
+    seed[i] = stmlib::GATE_FLAG_HIGH;
+  }
+  for (int i = 0; i < n; ++i) {
+    if (s->bd_shadow) {   // the shadow records exactly what the engine records
+      long wi = s->bd_shadow_w % (5L * ET_SR);
+      s->bd_shadow[wi][0] = L[i]; s->bd_shadow[wi][1] = R[i];
+      ++s->bd_shadow_w;
+    }
+  }
+  run(L, R, n, ldensity, freeze, seed, wl, wr);
+  // The module's wet carries a fixed x1.5 post-gain against a x0.75 dry (hot by design inside
+  // its own crossfade). ET's dry bypasses Beads at unity, so the 1.5 must come out: wet gain
+  // 1.0 x the source level, a level-neutral MIX sweep (was 1.2 x 1.5 = +5 dB over dry).
+  const float makeup = 1.0f / 1.5f;
+  for (int i = 0; i < n; ++i) {
+    s->bd_wfade += (wfade_tgt - s->bd_wfade) * 0.005f;   // ~10 ms each way (one-pole)
+    if (wfade_tgt == 0.f && s->bd_wfade < 0.002f) s->bd_wfade = 0.f;   // settle: the switch applies
+    wl[i] *= makeup * kenv * s->bd_wfade; wr[i] *= makeup * kenv * s->bd_wfade;
+  }
+}
+
 void push_reverb(Inst* s, int type) {
   int k = type == 2 ? 1 : 0;   // ROOM, else the plate (PLATE, and REVERSE's source)
   const ReverbApi* api = k ? &kRoomReverb : &kPlateReverb;
@@ -1014,14 +1239,17 @@ void render_block(Inst* s, float* L, float* R, int n) {
       envmax = fmaxf(envmax, vc.env.v * vc.vel);
     }
   }
-  // ---- the grain engines: XXL GRAINS and CLOUDS (a short crossfade when the engine changes)
+  // ---- the grain engines: XXL GRAINS, CLOUDS and BEADS (a short crossfade when the engine changes)
   int engine = opt(s, P_ENGINE);
   float step = 1.f / 441.f;
-  float gw[2][kBlock], cw[2][kBlock];
+  float gw[2][kBlock], cw[2][kBlock], bw[2][kBlock];
   memset(gw, 0, sizeof gw);
   memset(cw, 0, sizeof cw);
-  bool run_xxl = engine == 0 || s->cl_mix < 1.f;
-  bool run_cl = (engine == 1 || s->cl_mix > 0.f) && s->cl;
+  memset(bw, 0, sizeof bw);
+  float f1 = s->cl_mix, f2 = s->bd_mix;   // the fades as they were decide what to render
+  bool run_xxl = engine == 0 || f1 + f2 < 1.f;   // XXL keeps what CLOUDS and BEADS do not take
+  bool run_cl = (engine == 1 || f1 > 0.f) && s->cl;
+  bool run_bd = (engine == 2 || f2 > 0.f) && s->bd;
   int sync = opt(s, P_GRAIN_SYNC);
   static const double kSyncBeats[7] = {0, 1.0, 0.5, 0.25, 0.125, 1.0 / 3.0, 1.0 / 6.0};
   double beat0 = s->host_pos && s->tempo.playing ? s->tempo.ppq : s->own_beats;
@@ -1045,11 +1273,16 @@ void render_block(Inst* s, float* L, float* R, int n) {
   }
   if (run_cl) clouds_block(s, L, R, cw[0], cw[1], n, scale, sync ? kSyncBeats[sync] : 0.0, beat0, bpf,
                            s->keys_mode ? envmax : 1.f);
+  if (run_bd) beads_block(s, L, R, bw[0], bw[1], n, s->keys_mode ? envmax : 1.f);
   for (int i = 0; i < n; ++i) {
     s->cl_mix += engine == 1 ? step : -step;
+    s->bd_mix += engine == 2 ? step : -step;
     s->cl_mix = clampf(s->cl_mix, 0.f, 1.f);
-    float f = s->cl_mix;
-    float wl = gw[0][i] * (1.f - f) + cw[0][i] * f, wr = gw[1][i] * (1.f - f) + cw[1][i] * f;
+    s->bd_mix = clampf(s->bd_mix, 0.f, 1.f);
+    float f = s->cl_mix, b = s->bd_mix;
+    float w0 = clampf((1.f - f) - b, 0.f, 1.f);   // XXL's fade: what CLOUDS and BEADS leave it
+    float wl = gw[0][i] * w0 + cw[0][i] * f + bw[0][i] * b;
+    float wr = gw[1][i] * w0 + cw[1][i] * f + bw[1][i] * b;
     L[i] = L[i] * (1.f - mix) + wl * mix + wet[0][i];
     R[i] = R[i] * (1.f - mix) + wr * mix + wet[1][i];
   }
@@ -1229,6 +1462,20 @@ void* create(const char* dataDir) {
     pthread_cond_init(&s->cl_wake, nullptr);
     s->cl_thread_on = pthread_create(&s->cl_thread, nullptr, clouds_prepare_loop, s) == 0;
   } else free(clm);
+  // Beads: zeroed memory (the firmware keeps it in BSS; Init() leaves members unset), its banks, no helper thread.
+  // The bank slicing is beads.cc's verbatim; Init() leaves the media at MEDIA_DIGITAL (BEADS' fixed media).
+  s->bd_delay1 = static_cast<uint8_t*>(calloc(1, 2 * 256 * 1024));
+  s->bd_delay2 = static_cast<uint8_t*>(calloc(1, 256 * 1024));
+  s->bd_verb = static_cast<uint16_t*>(calloc(32768, sizeof(uint16_t)));
+  s->bd_shadow = static_cast<float(*)[2]>(calloc(5 * ET_SR, sizeof(float[2])));   // 5 s: the longest single-media buffer
+  s->bd_dn = new et::RationalSRC; s->bd_dn->Init(320, 441);
+  s->bd_up = new et::RationalSRC; s->bd_up->Init(441, 320);
+  void* bdm = calloc(1, sizeof(beads::Processor));
+  if (bdm && s->bd_delay1 && s->bd_delay2 && s->bd_verb) {
+    s->bd = new (bdm) beads::Processor;
+    uint8_t* bdbuf[3] = { s->bd_delay1, s->bd_delay1 + (256 * 1024), s->bd_delay2 };
+    s->bd->Init(bdbuf, s->bd_verb);
+  } else free(bdm);
   s->src.start(s->plugin_dir, s->data_dir);
   s->dir.start(s->data_dir);
   s->work.start();
@@ -1251,6 +1498,13 @@ void destroy(void* p) {
   if (s->cl) { s->cl->~GranularProcessor(); free(s->cl); }
   free(s->cl_large);
   free(s->cl_small);
+  if (s->bd) { s->bd->~Processor(); free(s->bd); }
+  free(s->bd_delay1);
+  free(s->bd_delay2);
+  free(s->bd_verb);
+  free(s->bd_shadow);
+  delete s->bd_dn;
+  delete s->bd_up;
   s->tape.free_all();
   s->looper.free_all();
   if (s->rv[0]) kPlateReverb.destroy(s->rv[0]);
