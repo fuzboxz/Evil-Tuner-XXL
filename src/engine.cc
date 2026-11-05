@@ -155,6 +155,10 @@ struct Inst {
 };
 
 inline float knob(const Inst* s, int p) { return s->v[p]; }
+// PARAM VALUE UNITS: a continuous knob's s->v is its 0..1 position; an option knob's s->v is
+// its option INDEX (0..nopts-1) -- opt() reads the index, and anything wanting a 0..1 depth
+// from an option knob must divide by (nopts - 1) (the BEADS RND knobs got that wrong once:
+// every step but the first read as full depth, and the display showed index x 100 %).
 inline int opt(const Inst* s, int p) { return (int)lroundf(s->v[p]); }
 inline float E(const Inst* s, int p) { return s->eff[p]; }
 
