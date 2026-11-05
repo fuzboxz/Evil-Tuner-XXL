@@ -142,6 +142,8 @@ struct Inst {
   float (*bd_shadow)[2] = nullptr;    // the last ~5 s fed to Beads -- what its buffer holds (media-switch carry-over)
   et::RationalSRC* bd_dn = nullptr;   // per instance: 44.1->32 k and back, VINTAGE DIGITAL only
   et::RationalSRC* bd_up = nullptr;
+  int bd_pending = -1;               // media index waiting for the fade-out before the reconfigure
+  float bd_wfade = 1.f;              // the wet fade across a media switch (~10 ms each way)
   long bd_shadow_w = 0;               // absolute frames recorded into the shadow
   long bd_replay = -1;                // absolute shadow frame being re-fed; -1 = idle
   float bd_mix = 0.f;                 // fades BEADS in / out when the engine changes
@@ -1035,9 +1037,22 @@ void beads_block(Inst* s, const float* L, const float* R, float* wl, float* wr, 
       beads::Processor::MEDIA_CLEAN_TAPE, beads::Processor::MEDIA_DIRTY_TAPE,
       beads::Processor::MEDIA_DIGITAL, beads::Processor::MEDIA_DIRTY_TAPE};
   int mo = opt(s, P_CL_MODE);
+  // The media switch is DEFERRED behind a ~10 ms wet fade (bd_wfade): Configure() flushes the
+  // reverb and resets the engine mid-tail, and the replay re-records the buffer at 8x -- the
+  // live grains would read that as time-scrambled noise for the refill window. So: fade the
+  // wet out, THEN reconfigure and refill (grains silenced, recording continues), fade back in.
   if (mo != s->bd_cfg) {
-    s->bd_cfg = mo;
-    g.Configure(kMediaOf[mo], mo >= 4);
+    if (s->bd_pending < 0) s->bd_pending = mo;   // begin the fade-out
+    else s->bd_pending = mo;                     // a later turn while fading retargets
+  } else if (s->bd_pending >= 0) {
+    s->bd_pending = -1;                          // switched back to the applied media: cancel
+  }
+  const bool refilling = s->bd_replay >= 0;
+  const float wfade_tgt = (s->bd_pending >= 0 || refilling) ? 0.f : 1.f;
+  if (s->bd_pending >= 0 && s->bd_wfade <= 0.f) {   // fully faded: apply the switch
+    s->bd_cfg = s->bd_pending;
+    s->bd_pending = -1;
+    g.Configure(kMediaOf[s->bd_cfg], s->bd_cfg >= 4);
     g.Trim();   // duration_ = 0: the read bound will grow over exactly what is re-recorded
     s->bd_dn->Reset(); s->bd_up->Reset();   // no frames cross a media switch
     // carry the material across: the new media's encoding/rate differs (16/12/8-bit, the
@@ -1061,6 +1076,9 @@ void beads_block(Inst* s, const float* L, const float* R, float* wl, float* wr, 
   beads::ModulatedParameter density;
   density.base = clampf(E(s, P_GRAINS), 0.f, 1.f);
   density.cv = 0.f;
+  beads::ModulatedParameter silence;   // the refill window's live density: record, don't granulate
+  silence.base = 0.f; silence.cv = 0.f;
+  const beads::ModulatedParameter& ldensity = refilling ? silence : density;
   beads::Processor::MixParameters mixp;
   mixp.feedback = clampf(E(s, P_CLOUD), 0.f, 1.f);       // CLOUDS precedent: CLOUD = feedback
   // dry_wet is pinned FULL WET: the module with its DRY/WET pot at wet. The ET MIX knob that
@@ -1104,7 +1122,6 @@ void beads_block(Inst* s, const float* L, const float* R, float* wl, float* wr, 
   if (s->bd_replay >= 0 && s->bd_shadow) {
     // the re-record pump: feed shadow frames through Process with the trigger paths closed
     // (seed gate LOW, DENSITY 0, freeze forced off so the writes land); output is discarded.
-    beads::ModulatedParameter zdensity; zdensity.base = 0.f; zdensity.cv = 0.f;
     static stmlib::GateFlags seed_low[kBlock];
     static bool nofreeze[kBlock];           // GATE_FLAG_LOW is 0: static zero-init fits both
     static float pl[kBlock], pr[kBlock];
@@ -1115,7 +1132,7 @@ void beads_block(Inst* s, const float* L, const float* R, float* wl, float* wr, 
         long wi = (s->bd_replay + i) % (5L * ET_SR);
         pl[i] = s->bd_shadow[wi][0]; pr[i] = s->bd_shadow[wi][1];
       }
-      run(pl, pr, m, zdensity, nofreeze, seed_low, nullptr, nullptr);
+      run(pl, pr, m, silence, nofreeze, seed_low, nullptr, nullptr);
       s->bd_replay += m; budget -= m;
     }
     if (s->bd_replay >= s->bd_shadow_w) s->bd_replay = -1;
@@ -1137,12 +1154,16 @@ void beads_block(Inst* s, const float* L, const float* R, float* wl, float* wr, 
       ++s->bd_shadow_w;
     }
   }
-  run(L, R, n, density, freeze, seed, wl, wr);
+  run(L, R, n, ldensity, freeze, seed, wl, wr);
   // The module's wet carries a fixed x1.5 post-gain against a x0.75 dry (hot by design inside
   // its own crossfade). ET's dry bypasses Beads at unity, so the 1.5 must come out: wet gain
   // 1.0 x the source level, a level-neutral MIX sweep (was 1.2 x 1.5 = +5 dB over dry).
   const float makeup = 1.0f / 1.5f;
-  for (int i = 0; i < n; ++i) { wl[i] *= makeup * kenv; wr[i] *= makeup * kenv; }
+  for (int i = 0; i < n; ++i) {
+    s->bd_wfade += (wfade_tgt - s->bd_wfade) * 0.005f;   // ~10 ms each way (one-pole)
+    if (wfade_tgt == 0.f && s->bd_wfade < 0.002f) s->bd_wfade = 0.f;   // settle: the switch applies
+    wl[i] *= makeup * kenv * s->bd_wfade; wr[i] *= makeup * kenv * s->bd_wfade;
+  }
 }
 
 void push_reverb(Inst* s, int type) {
