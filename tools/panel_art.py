@@ -802,6 +802,17 @@ def main(skin):
     for f in os.listdir(skin):
         if f.endswith(".png") and f not in sk.used:
             os.remove(os.path.join(skin, f))
+    # the Instruments-browser tile (Plugin Skins/browser_images/soundsmode.png, 270x110 -- MPC's
+    # Sounds > INSTRUMENTS page): the RADIO page's live preview, cropped to its identity band
+    # (the station list, the two big knobs, the amber window), with the name across the middle.
+    import preview as pv
+    _, _, shown = build_page(sk, 0, pv.SAMPLE)
+    band = shown.crop((0, 94, P.W, 615)).resize((270, 110), Image.LANCZOS)
+    dd = ImageDraw.Draw(band)
+    dd.text((135, 55), "Evil Tuner XXL", font=ImageFont.truetype(TITILLIUM_B, 26),
+            fill=(255, 255, 255, 255), anchor="mm", stroke_width=2, stroke_fill=(12, 8, 4, 255))
+    os.makedirs(os.path.join(skin, "browser_images"), exist_ok=True)
+    band.convert("RGB").save(os.path.join(skin, "browser_images", "soundsmode.png"))
     print("panel_art: %d definitions, %d pictures" % (len(sk.defs), len(sk.used)))
 
 
