@@ -220,19 +220,21 @@ Three grain engines, picked with **ENGINE** (XXL GRAINS, CLOUDS, BEADS):
 - **CLOUDS**: Mutable Instruments Clouds with the Parasites firmware (the engine RMXXXL uses), in six modes picked with
   **CLOUDS MODE**: GRANULAR, STRETCH, LOOPING DELAY, SPECTRAL, OLIVERB, RESONESTOR. KEYS plays it one note at a time
   (the last pad pressed sets the pitch and fires a grain); the oscillator layer still plays chords.
-- **BEADS**: Mutable Instruments Beads (vendored from pichenettes/eurorack) in its fixed digital-media setting, as
-  faithful to the module as the page allows. The exact controls: POSITION is TIME, SIZE is SIZE, SHAPE is SHAPE, PITCH
+- **BEADS**: Mutable Instruments Beads (vendored from pichenettes/eurorack), as faithful to the module as the page
+  allows, with the module's media settings on the CLOUDS MODE knob. The exact controls: POSITION is TIME, SIZE is SIZE, SHAPE is SHAPE, PITCH
   is PITCH -- turning through the module's own musical steps (0, 1, 3, 4, 7, 12, 24 semitones and their negatives;
   KEYS transposes continuously) -- and GRAINS is DENSITY; FREEZE freezes. CLOUD carries FEEDBACK and DETUNE carries
   REVERB wet (the same slots as in CLOUDS), GRAIN MIX is the engine-bus blend (Beads' own dry/wet sits at full wet, as patched wet-only). The four slots without a Beads
-  counterpart carry the randomization and the media (Q-Link bank 4): TIME RND (SPREAD) scatters each grain's read position toward uniform across the buffer, SHAPE RND (GRAIN
-  SYNC) scatters grain envelope shapes (a 0.1 Hz walk in delay mode), PITCH RND (SCALE) is a +/-24 st random walk on top of the snapped pitch (the stepped option knobs keep
-  their steps as the amount's detents), and MEDIA (CLOUDS MODE) selects the module's settings-menu flavors: DIGITAL (the default), VINTAGE DIGITAL (12-bit), CLEAN TAPE and
-  DIRTY TAPE (half-rate tapes with wow & flutter on dirty), plus MONO DIGITAL and MONO DIRTY on the last two steps. Switching media reconfigures the engine and the material
+  counterpart carry the randomization on the Q-Links (bank 4, with OSC LEVEL): TIME RND (SPREAD) scatters each grain's read position toward uniform across the buffer, SHAPE RND
+  (GRAIN SYNC) scatters grain envelope shapes (a 0.1 Hz walk in delay mode), PITCH RND (SCALE) is a +/-24 st random walk on top of the snapped pitch (the stepped option knobs
+  keep their steps as the amount's detents). MEDIA (the CLOUDS MODE knob, touch-only -- it is not on the Q-Links) selects the module's settings-menu flavors: DIGITAL (the
+  default), VINTAGE DIGITAL (12-bit), CLEAN TAPE and DIRTY TAPE (half-rate tapes with wow & flutter on dirty), plus MONO DIGITAL and MONO DIRTY on the last two steps. Switching media reconfigures the engine and the material
   carries over: the last ~5 s is re-recorded into the new media through its own converters (~0.6 s, silent) -- the encodings differ (16/12/8-bit, the tapes at half rate),
   so the buffer is rebuilt, not transplanted -- a larger target buffer is neither repeated nor padded: the read bound (the module's own trim/duration tracking) grows over
   exactly the carried material, so TIME always finds audio. The same trim starts each BEADS stint as a fresh take (TIME tracks what this stint has recorded). Mode crossings
-  (SIZE to max and back) never dropped the buffer in the first place. CLOUDS MODE does nothing in XXL and is covered there (SCALE stays: it quantizes PITCH in every engine).
+  (SIZE to max and back) never dropped the buffer in the first place -- and SIZE at max IS the module's second mode: a
+  clocked multitap delay (TIME becomes the delay time, the randomness becomes slow drifts). CLOUDS MODE does nothing in XXL and is covered there (SCALE stays: it quantizes
+  PITCH in every engine).
 
 The knobs' names follow the engine and the mode: in CLOUDS GRANULAR, GRAINS reads DENSITY, SHAPE TEXTURE, CLOUD
 FEEDBACK, DETUNE CLOUD VERB; in LOOPING DELAY, POSITION reads DELAY TIME and SIZE LOOP SIZE, and so on. The screen always
