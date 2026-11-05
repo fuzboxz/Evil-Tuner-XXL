@@ -48,7 +48,7 @@ build/host/host build/host/plugin /tmp/et_test.wav 34 url:http://127.0.0.1:$PORT
   at:25 press:keys \
   at:26 engine=2 mix=0.8 pos=0.1 size=0.4 shape=0.5 grains=0.85 spread=0.4 cloud=0.3 detune=0.2 \
   at:28 press:freeze at:29 press:freeze \
-  at:30 shape=0.9 at:31 spread=0.9 cl_mode=3 grain_sync=2 scale=3 at:31.5 spread=1 cl_mode=5 scale=7 \
+  at:30 shape=0.9 at:30.5 cl_mode=1 at:31 spread=0.9 cl_mode=3 grain_sync=2 scale=3 at:31.5 spread=1 cl_mode=5 scale=7 \
   at:32 engine=0 | tail -4
 python3 - <<'PY'
 import wave, numpy as np, sys

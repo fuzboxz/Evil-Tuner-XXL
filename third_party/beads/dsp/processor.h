@@ -91,9 +91,10 @@ class Processor {
 #ifdef ENABLE_HARDWARE_24K
     float sr[4] = { 24000.0f, BEADS_INTERNAL_SR, 32000.0f, BEADS_INTERNAL_SR };
 #else
-    // the port's config (no codec): every media's constants derive from the host rate;
-    // vintage digital runs full-rate 12-bit instead of the module's 32 kHz codec
-    float sr[4] = { BEADS_INTERNAL_SR, BEADS_INTERNAL_SR, BEADS_INTERNAL_SR, BEADS_INTERNAL_SR };
+    // the port's config (no codec): constants derive from the host rate; the tapes run at
+    // half of it (ratio 2) and vintage digital at its true 32000 (the port wraps it in a
+    // 44.1<->32 kHz polyphase -- src/beads_src.h)
+    float sr[4] = { BEADS_INTERNAL_SR, BEADS_INTERNAL_SR, 32000.0f, BEADS_INTERNAL_SR };
 #endif  // ENABLE_HARDWARE_24K
     return sr[media_];
   }

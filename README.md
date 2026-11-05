@@ -228,7 +228,8 @@ Three grain engines, picked with **ENGINE** (XXL GRAINS, CLOUDS, BEADS):
   counterpart carry the randomization on the Q-Links (bank 4, with OSC LEVEL): TIME RND (SPREAD) scatters each grain's read position toward uniform across the buffer, SHAPE RND
   (GRAIN SYNC) scatters grain envelope shapes (a 0.1 Hz walk in delay mode), PITCH RND (SCALE) is a +/-24 st random walk on top of the snapped pitch (the stepped option knobs
   keep their steps as the amount's detents). MEDIA (the CLOUDS MODE knob, touch-only -- it is not on the Q-Links) selects the module's settings-menu flavors: DIGITAL (the
-  default), VINTAGE DIGITAL (12-bit), CLEAN TAPE and DIRTY TAPE (half-rate tapes with wow & flutter on dirty), plus MONO DIGITAL and MONO DIRTY on the last two steps. Switching media reconfigures the engine and the material
+  default), VINTAGE DIGITAL (12-bit at its true 32000 Hz -- the port converts around the engine, 44.1<->32 kHz polyphase), CLEAN TAPE and DIRTY TAPE (half-rate tapes with wow &
+  flutter on dirty), plus MONO DIGITAL and MONO DIRTY on the last two steps. Switching media reconfigures the engine and the material
   carries over: the last ~5 s is re-recorded into the new media through its own converters (~0.6 s, silent) -- the encodings differ (16/12/8-bit, the tapes at half rate),
   so the buffer is rebuilt, not transplanted -- a larger target buffer is neither repeated nor padded: the read bound (the module's own trim/duration tracking) grows over
   exactly the carried material, so TIME always finds audio. The same trim starts each BEADS stint as a fresh take (TIME tracks what this stint has recorded). Mode crossings

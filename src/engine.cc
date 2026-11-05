@@ -27,6 +27,8 @@ extern "C" {
 // superset (same bodies for everything this TU's Clouds inline code uses). Clouds' own .cc files are separate TUs
 // with their own headers, so Clouds' DSP compiles exactly as before.
 #include "beads/dsp/processor.h"
+
+#include "beads_src.h"   // 44.1<->32 kHz: VINTAGE DIGITAL at its true rate
 #include "clouds/dsp/granular_processor.h"
 #include <pthread.h>
 #include <time.h>
@@ -138,6 +140,8 @@ struct Inst {
   uint8_t* bd_delay2 = nullptr;       // 256 KB, beads.cc's third bank
   uint16_t* bd_verb = nullptr;        // 32768 words: the reverb's FxEngine<32768> clears all of them on Init
   float (*bd_shadow)[2] = nullptr;    // the last ~5 s fed to Beads -- what its buffer holds (media-switch carry-over)
+  et::RationalSRC* bd_dn = nullptr;   // per instance: 44.1->32 k and back, VINTAGE DIGITAL only
+  et::RationalSRC* bd_up = nullptr;
   long bd_shadow_w = 0;               // absolute frames recorded into the shadow
   long bd_replay = -1;                // absolute shadow frame being re-fed; -1 = idle
   float bd_mix = 0.f;                 // fades BEADS in / out when the engine changes
@@ -1035,6 +1039,7 @@ void beads_block(Inst* s, const float* L, const float* R, float* wl, float* wr, 
     s->bd_cfg = mo;
     g.Configure(kMediaOf[mo], mo >= 4);
     g.Trim();   // duration_ = 0: the read bound will grow over exactly what is re-recorded
+    s->bd_dn->Reset(); s->bd_up->Reset();   // no frames cross a media switch
     // carry the material across: the new media's encoding/rate differs (16/12/8-bit, the
     // tapes at half rate), so the buffer cannot be transplanted -- it is RE-RECORDED. The
     // shadow ring below holds the last ~5 s of what Beads was fed; replaying it through the
@@ -1064,21 +1069,53 @@ void beads_block(Inst* s, const float* L, const float* R, float* wl, float* wr, 
   mixp.dry_wet = 1.f;
   mixp.reverb_amount = clampf(E(s, P_DETUNE), 0.f, 1.f); // CLOUDS precedent: DETUNE = reverb wet
   mixp.output_gate = false;
+  const bool vintage = kMediaOf[mo] == beads::Processor::MEDIA_VINTAGE_DIGITAL;
+  // one engine call, SRC-wrapped while VINTAGE (its true 32000): nn host frames go through
+  // the down-converter, Process runs on the 32 k frames, the wet comes back up. lout == 0:
+  // output discarded (the replay pump records into the 32 k buffer, nothing to convert up).
+  auto run = [&](const float* lin, const float* rin2, int nn, const beads::ModulatedParameter& dens,
+                 const bool* frz, const stmlib::GateFlags* sd, float* lout, float* rout) {
+    static float dl[kBlock + 8], dr[kBlock + 8], ol[kBlock], ur[kBlock];
+    static beads::FloatFrame fi[kBlock], fo[kBlock];
+    if (!vintage) {
+      for (int i = 0; i < nn; ++i) { fi[i].l = lin[i]; fi[i].r = rin2[i]; }
+      g.Process(beads::SEED_BUTTON_STATE_OFF, sd, frz, dens, p, mixp, fi, fo, nn);
+      if (lout) for (int i = 0; i < nn; ++i) { lout[i] = fo[i].l; rout[i] = fo[i].r; }
+      return;
+    }
+    s->bd_dn->Push(lin, rin2, nn);
+    int m;
+    while ((m = s->bd_dn->Pull(dl, dr, kBlock)) > 0) {
+      for (int i = 0; i < m; ++i) { fi[i].l = dl[i]; fi[i].r = dr[i]; }
+      g.Process(beads::SEED_BUTTON_STATE_OFF, sd, frz, dens, p, mixp, fi, fo, m);
+      if (lout) {
+        for (int i = 0; i < m; ++i) { ol[i] = fo[i].l; ur[i] = fo[i].r; }
+        s->bd_up->Push(ol, ur, m);
+      }
+    }
+    if (lout) {
+      int k = s->bd_up->Pull(lout, rout, nn);
+      for (; k < nn; ++k) {   // a rounding-short block at start-up: hold the last frame
+        lout[k] = k ? lout[k - 1] : 0.f;
+        rout[k] = k ? rout[k - 1] : 0.f;
+      }
+    }
+  };
   if (s->bd_replay >= 0 && s->bd_shadow) {
     // the re-record pump: feed shadow frames through Process with the trigger paths closed
     // (seed gate LOW, DENSITY 0, freeze forced off so the writes land); output is discarded.
     beads::ModulatedParameter zdensity; zdensity.base = 0.f; zdensity.cv = 0.f;
     static stmlib::GateFlags seed_low[kBlock];
     static bool nofreeze[kBlock];           // GATE_FLAG_LOW is 0: static zero-init fits both
-    static beads::FloatFrame rin[kBlock], rout[kBlock];
+    static float pl[kBlock], pr[kBlock];
     int budget = 8 * n;                     // 8x real time until the shadow is drained
     while (s->bd_replay < s->bd_shadow_w && budget > 0) {
       int m = std::min(std::min(kBlock, budget), (int)std::min(s->bd_shadow_w - s->bd_replay, 5L * ET_SR));
       for (int i = 0; i < m; ++i) {
         long wi = (s->bd_replay + i) % (5L * ET_SR);
-        rin[i].l = s->bd_shadow[wi][0]; rin[i].r = s->bd_shadow[wi][1];
+        pl[i] = s->bd_shadow[wi][0]; pr[i] = s->bd_shadow[wi][1];
       }
-      g.Process(beads::SEED_BUTTON_STATE_OFF, seed_low, nofreeze, zdensity, p, mixp, rin, rout, m);
+      run(pl, pr, m, zdensity, nofreeze, seed_low, nullptr, nullptr);
       s->bd_replay += m; budget -= m;
     }
     if (s->bd_replay >= s->bd_shadow_w) s->bd_replay = -1;
@@ -1093,21 +1130,19 @@ void beads_block(Inst* s, const float* L, const float* R, float* wl, float* wr, 
     // SIZE at max -- self-clocks and masked it).
     seed[i] = stmlib::GATE_FLAG_HIGH;
   }
-  beads::FloatFrame in[kBlock], out[kBlock];
   for (int i = 0; i < n; ++i) {
-    in[i].l = L[i]; in[i].r = R[i];
     if (s->bd_shadow) {   // the shadow records exactly what the engine records
       long wi = s->bd_shadow_w % (5L * ET_SR);
       s->bd_shadow[wi][0] = L[i]; s->bd_shadow[wi][1] = R[i];
       ++s->bd_shadow_w;
     }
   }
-  g.Process(beads::SEED_BUTTON_STATE_OFF, seed, freeze, density, p, mixp, in, out, n);
+  run(L, R, n, density, freeze, seed, wl, wr);
   // The module's wet carries a fixed x1.5 post-gain against a x0.75 dry (hot by design inside
   // its own crossfade). ET's dry bypasses Beads at unity, so the 1.5 must come out: wet gain
   // 1.0 x the source level, a level-neutral MIX sweep (was 1.2 x 1.5 = +5 dB over dry).
   const float makeup = 1.0f / 1.5f;
-  for (int i = 0; i < n; ++i) { wl[i] = out[i].l * makeup * kenv; wr[i] = out[i].r * makeup * kenv; }
+  for (int i = 0; i < n; ++i) { wl[i] *= makeup * kenv; wr[i] *= makeup * kenv; }
 }
 
 void push_reverb(Inst* s, int type) {
@@ -1406,6 +1441,8 @@ void* create(const char* dataDir) {
   s->bd_delay2 = static_cast<uint8_t*>(calloc(1, 256 * 1024));
   s->bd_verb = static_cast<uint16_t*>(calloc(32768, sizeof(uint16_t)));
   s->bd_shadow = static_cast<float(*)[2]>(calloc(5 * ET_SR, sizeof(float[2])));   // 5 s: the longest single-media buffer
+  s->bd_dn = new et::RationalSRC; s->bd_dn->Init(320, 441);
+  s->bd_up = new et::RationalSRC; s->bd_up->Init(441, 320);
   void* bdm = calloc(1, sizeof(beads::Processor));
   if (bdm && s->bd_delay1 && s->bd_delay2 && s->bd_verb) {
     s->bd = new (bdm) beads::Processor;
@@ -1439,6 +1476,8 @@ void destroy(void* p) {
   free(s->bd_delay2);
   free(s->bd_verb);
   free(s->bd_shadow);
+  delete s->bd_dn;
+  delete s->bd_up;
   s->tape.free_all();
   s->looper.free_all();
   if (s->rv[0]) kPlateReverb.destroy(s->rv[0]);

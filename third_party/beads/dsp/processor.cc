@@ -46,7 +46,7 @@ void Processor::Init(
   // Init's argument is each processor's INTERNAL rate: the ratio-2 tape media run at
   // half the host rate (the module's 24 kHz tapes), everything else at the host rate.
   processor_digital_.Init(BEADS_INTERNAL_SR, buffers);
-  processor_vintage_digital_.Init(BEADS_INTERNAL_SR, buffers);
+  processor_vintage_digital_.Init(32000.0f, buffers);   // its true rate (src/beads_src.h resamples for it)
   processor_clean_tape_.Init(BEADS_INTERNAL_SR / 2, buffers);
   processor_dirty_tape_.Init(BEADS_INTERNAL_SR / 2, buffers);
   
