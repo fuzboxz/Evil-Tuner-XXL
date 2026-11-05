@@ -185,7 +185,7 @@ std::string value_text(const Inst* s, int p) {
     return kMediaName[std::min((int)lroundf(v), 5)];
   }
   if (beads && (p == P_GRAIN_SYNC || p == P_SCALE))
-    return pct(v);
+    return pct(v / (d.nopts - 1));   // v is the option index: 0,17,33..100, not 0,100..600
   if ((clouds || beads) && (p == P_POS || p == P_SIZE || p == P_GRAINS || p == P_SHAPE || p == P_SPREAD || p == P_CLOUD || p == P_DETUNE)) {
     if (clouds && p == P_GRAINS && opt(s, P_GRAIN_SYNC) && opt(s, P_CL_MODE) == 0) {
       snprintf(b, sizeof b, "CHANCE %d%%", (int)lroundf((0.15f + 0.85f * v) * 100.f));
@@ -1066,10 +1066,12 @@ void beads_block(Inst* s, const float* L, const float* R, float* wl, float* wr, 
   if (s->bd_mix <= 0.f) {
     g.Trim();   // a BEADS stint starts a fresh take: TIME tracks this stint's recording
   }
+  // the option knobs hold their option INDEX in s->v (opt() is lround(v)): normalize by the
+  // count-1 to get the 0..1 depth (clamping the raw index made every step but the first full)
   p.time.attenuverter = clampf(E(s, P_SPREAD), 0.f, 1.f);
   p.size.attenuverter = 0.f;
-  p.shape.attenuverter = clampf(E(s, P_GRAIN_SYNC), 0.f, 1.f);
-  p.pitch.attenuverter = clampf(E(s, P_SCALE), 0.f, 1.f);
+  p.shape.attenuverter = clampf(E(s, P_GRAIN_SYNC) / (PARAM_DEFS[P_GRAIN_SYNC].nopts - 1), 0.f, 1.f);
+  p.pitch.attenuverter = clampf(E(s, P_SCALE) / (PARAM_DEFS[P_SCALE].nopts - 1), 0.f, 1.f);
   p.time.cv = p.size.cv = p.shape.cv = p.pitch.cv = 0.f;
   p.time.has_cv = p.size.has_cv = p.shape.has_cv = p.pitch.has_cv = false;
   p.monophonic_mode = false;
