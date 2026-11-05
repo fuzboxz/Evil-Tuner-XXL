@@ -99,8 +99,8 @@ key_row(T, [("freeze", "FREEZE"), ("keys", "KEYS"), ("ft_lp", "LP"), ("ft_hp", "
 # One qlinks set per tab, max 16 keys (the framework's settled design -- NOTES "Split-screen
 # Q-Link banks: tried, reverted": sub-pages fragmented on device; RMXXXL's one-page-per-tab
 # shape is the proven one). Priority per the framework's guidance: main knobs and levels first,
-# enums last (PET: bank-quadrant order instead). PET Q-Links osc_lvl and drops flt_env and cl_mode;
-# MOD drops the three LFO wave selectors -- they stay on screen and touchable, just without a Q-Link.
+# enums last. PET and MOD are cut into bank quadrants (one box per bank hugs its controls);
+# PET drops flt_env and cl_mode, MOD drops atk/dec/sus/rel -- they stay on screen and touchable.
 QLINKS[T] = [["engine", "pos", "size", "pitch",                      # bank 1: row 1 left
               "grains", "cloud", "detune", "shape",                     # bank 2: row 1 right
               "cutoff", "reso", "mix", "volume",                        # bank 3: row 2 right
@@ -159,9 +159,12 @@ for i in range(3):
 knob_row(T, ["fol_amt", "fol_spd", "fol_dest"], 112, 784, 1264, 96, "dark")
 knob_row(T, ["atk", "dec"], 272, 784, 1264, 96, "dark")
 knob_row(T, ["sus", "rel"], 432, 784, 1264, 96, "dark")
-QLINKS[T] = [["l1_rate", "l1_depth", "l1_dest", "l2_rate", "l2_depth", "l2_dest",
-              "l3_rate", "l3_depth", "l3_dest", "fol_amt", "fol_spd", "fol_dest",
-              "atk", "dec", "sus", "rel"]]
+# Bank quadrants here too: one bank per LFO row (wave selectors back on the Q-Links), and
+# the follower trio as bank 4 (three slots; the fourth Q-Link stays empty).
+QLINKS[T] = [["l1_rate", "l1_depth", "l1_wave", "l1_dest",
+              "l2_rate", "l2_depth", "l2_wave", "l2_dest",
+              "l3_rate", "l3_depth", "l3_wave", "l3_dest",
+              "fol_amt", "fol_spd", "fol_dest"]]
 
 
 QLINK_FILE = os.path.join(ROOT, "qlinks.json")

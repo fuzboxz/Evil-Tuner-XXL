@@ -424,99 +424,92 @@
      "n": 3,
      "qlinkPage": 1,
      "knob": 3,
-     "key": "l1_dest",
-     "name": "LFO1 DEST"
+     "key": "l1_wave",
+     "name": "LFO1 WAVE"
     },
     {
      "n": 4,
      "qlinkPage": 1,
      "knob": 4,
-     "key": "l2_rate",
-     "name": "LFO2 RATE"
+     "key": "l1_dest",
+     "name": "LFO1 DEST"
     },
     {
      "n": 5,
      "qlinkPage": 1,
      "knob": 5,
-     "key": "l2_depth",
-     "name": "LFO2 DEPTH"
+     "key": "l2_rate",
+     "name": "LFO2 RATE"
     },
     {
      "n": 6,
      "qlinkPage": 1,
      "knob": 6,
-     "key": "l2_dest",
-     "name": "LFO2 DEST"
+     "key": "l2_depth",
+     "name": "LFO2 DEPTH"
     },
     {
      "n": 7,
      "qlinkPage": 1,
      "knob": 7,
-     "key": "l3_rate",
-     "name": "LFO3 RATE"
+     "key": "l2_wave",
+     "name": "LFO2 WAVE"
     },
     {
      "n": 8,
      "qlinkPage": 1,
      "knob": 8,
-     "key": "l3_depth",
-     "name": "LFO3 DEPTH"
+     "key": "l2_dest",
+     "name": "LFO2 DEST"
     },
     {
      "n": 9,
      "qlinkPage": 1,
      "knob": 9,
-     "key": "l3_dest",
-     "name": "LFO3 DEST"
+     "key": "l3_rate",
+     "name": "LFO3 RATE"
     },
     {
      "n": 10,
      "qlinkPage": 1,
      "knob": 10,
-     "key": "fol_amt",
-     "name": "FOLLOW AMT"
+     "key": "l3_depth",
+     "name": "LFO3 DEPTH"
     },
     {
      "n": 11,
      "qlinkPage": 1,
      "knob": 11,
-     "key": "fol_spd",
-     "name": "FOLLOW SPEED"
+     "key": "l3_wave",
+     "name": "LFO3 WAVE"
     },
     {
      "n": 12,
      "qlinkPage": 1,
      "knob": 12,
-     "key": "fol_dest",
-     "name": "FOLLOW DEST"
+     "key": "l3_dest",
+     "name": "LFO3 DEST"
     },
     {
      "n": 13,
      "qlinkPage": 1,
      "knob": 13,
-     "key": "atk",
-     "name": "ATTACK"
+     "key": "fol_amt",
+     "name": "FOLLOW AMT"
     },
     {
      "n": 14,
      "qlinkPage": 1,
      "knob": 14,
-     "key": "dec",
-     "name": "DECAY"
+     "key": "fol_spd",
+     "name": "FOLLOW SPEED"
     },
     {
      "n": 15,
      "qlinkPage": 1,
      "knob": 15,
-     "key": "sus",
-     "name": "SUSTAIN"
-    },
-    {
-     "n": 16,
-     "qlinkPage": 1,
-     "knob": 16,
-     "key": "rel",
-     "name": "RELEASE"
+     "key": "fol_dest",
+     "name": "FOLLOW DEST"
     }
    ]
   }
