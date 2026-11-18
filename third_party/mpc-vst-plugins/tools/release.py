@@ -103,9 +103,11 @@ if a.user_files:
     if problems:
         raise SystemExit("--user-files: " + "; ".join(problems))
 legacy_so = "/sdcard/vst/" + so_name   # where the previous layout installed the .so (and its data, next to it)
-sub = {"@NAME@": name, "@SO_NAME@": so_name, "@SKIN@": skin_name,
-       "@EXTRAS@": " ".join("'%s'" % e for e in extras), "@VERSION@": a.version,
-       "@UID@": attr["uid"], "@LEGACY_SO@": legacy_so, "@USER_DATA@": " ".join(a.user_data)}
+def sq(s):   # single-quote for sh: the folder name may contain ' (L'Cronx, ...)
+    return "'" + s.replace("'", "'\\''") + "'"
+sub = {"@NAME@": sq(name), "@SO_NAME@": sq(so_name), "@SKIN@": sq(skin_name),
+       "@EXTRAS@": " ".join(sq(e) for e in extras), "@VERSION@": a.version,
+       "@UID@": sq(attr["uid"]), "@LEGACY_SO@": sq(legacy_so), "@USER_DATA@": " ".join(sq(d) for d in a.user_data)}
 for script in ("install.sh", "uninstall.sh"):
     text = open(os.path.join(HERE, "release", script)).read()
     for k, v in sub.items():

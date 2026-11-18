@@ -5,7 +5,7 @@
 # (after a backup), and starts MPC again. Files the user added (listed in USER_DATA below, if any) are kept.
 set -e
 cd "$(dirname "$0")"
-NAME='@NAME@'; SO='@SO_NAME@'; SKIN='@SKIN@'; UID_HEX='@UID@'; LEGACY_SO='@LEGACY_SO@'; USER_DATA='@USER_DATA@'
+NAME=@NAME@; SO=@SO_NAME@; SKIN=@SKIN@; UID_HEX=@UID@; LEGACY_SO=@LEGACY_SO@; USER_DATA=@USER_DATA@
 SYNTHS=/sdcard/Synths; YES=0; DEFER=0
 die() { echo "error: $*" >&2; exit 1; }
 while [ $# -gt 0 ]; do

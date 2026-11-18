@@ -8,18 +8,38 @@
 # into the plugin folder. Files the user added inside the folder are kept across upgrades. Safe to run again.
 set -e
 cd "$(dirname "$0")"
-NAME='@NAME@'; SO='@SO_NAME@'; SKIN='@SKIN@'; UID_HEX='@UID@'; LEGACY_SO='@LEGACY_SO@'; USER_DATA='@USER_DATA@'; EXTRAS='@EXTRAS@'
-SYNTHS=/sdcard/Synths; YES=0; DEFER=0
+NAME=@NAME@; SO=@SO_NAME@; SKIN=@SKIN@; UID_HEX=@UID@; LEGACY_SO=@LEGACY_SO@; USER_DATA=@USER_DATA@; EXTRAS=@EXTRAS@
+SYNTHS=/sdcard/Synths; YES=0; DEFER=0; TSET=0
 die() { echo "error: $*" >&2; exit 1; }
 while [ $# -gt 0 ]; do
     case "$1" in
         -y) YES=1; shift ;;
         -n) DEFER=1; shift ;;   # a batch caller has stopped MPC and starts it again after the last plugin
-        -t) [ -n "$2" ] || die "-t needs a folder"; SYNTHS="$2"; shift 2 ;;
+        -t) [ -n "$2" ] || die "-t needs a folder"; SYNTHS="$2"; TSET=1; shift 2 ;;
         *) die "usage: sh install.sh [-y] [-n] [-t <synths-dir>]" ;;
     esac
 done
+# No -t: pick the folder this firmware loads from, without assuming a drive name (Live III: /nvme, Force/others: /sdcard, /media/az01-internal, /storage).
+#  1. a copy of this plugin already in <drive>/VST2 Plugins: update it (an install elsewhere would leave the old copy loading);
+#  2. MPC OS 3.10.1+ (read from /usr/bin/MPC): <drive>/VST2 Plugins on the first candidate drive that already has a VST2 Plugins folder;
+#  3. otherwise the classic /sdcard/Synths (Gen1 and MPC OS before 3.10.1).
+if [ $TSET = 0 ] && [ -z "$MPC_INSTALL_TEST" ]; then
+    CANDS="/nvme /storage /media/az01-internal /sdcard"
+    for d in $CANDS; do
+        [ -d "$d/VST2 Plugins/$SKIN" ] && { SYNTHS="$d/VST2 Plugins"; break; }
+    done
+    if [ "$SYNTHS" = /sdcard/Synths ]; then
+        OSV=$(grep -ao '3\.1[0-9]\.[0-9][0-9]*\(\.[0-9][0-9]*\)*' /usr/bin/MPC 2>/dev/null | sort -uV | tail -n 1)
+        case "$OSV" in 3.1[1-9]*|3.10.[1-9]*)
+            for d in $CANDS; do
+                [ -d "$d/VST2 Plugins" ] && { SYNTHS="$d/VST2 Plugins"; break; }
+            done ;;
+        esac
+    fi
+    [ "$SYNTHS" = /sdcard/Synths ] || echo "using $SYNTHS (the plugin folder of this MPC OS); pass -t to choose another"
+fi
 case "$SYNTHS" in /*) ;; *) die "-t must be an absolute path" ;; esac
+
 case "$SYNTHS" in *"&"*|*"|"*|*"\\"*) die "the Synths path may not contain & | or backslash" ;; esac
 FILE="$SYNTHS/$SKIN/$SO"
 OLDFILE="$MPC_LEGACY_ROOT$LEGACY_SO"   # MPC_LEGACY_ROOT is empty on a device; tests point it at a scratch folder

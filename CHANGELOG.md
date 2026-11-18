@@ -5,6 +5,13 @@
 Built and tested offline only: the host suite (test/run_tests.sh) passes with a BEADS scenario and the build gates are
 green. Not validated on a device yet.
 
+Installer (release.py / install.sh / uninstall.sh, vendored):
+- values substituted into the generated install.sh/uninstall.sh are now shell-quoted: the ' in `L'Cronx` broke both scripts
+  on a device (BusyBox: `syntax error: unexpected "("`), and EXTRAS was double-quoted. Device-verified on a Live III.
+- the installer picks the plugin folder for the firmware it runs on (ported from upstream mpc-vst-plugins 5767127):
+  on MPC OS 3.10.1+ without -t it installs into <drive>/VST2 Plugins, which is where 3.10.1 loads plugins from
+  (the old Synths location registers but never shows in the browser). Device-verified on a Live III (3.10.1.12).
+
 - PET: a third grain engine, BEADS (Mutable Instruments Beads, MIT), beside XXL GRAINS and CLOUDS on **ENGINE**, as
   faithful to the module as the page allows. The exact controls: POSITION is TIME, SIZE is SIZE, SHAPE is SHAPE, PITCH
   is PITCH -- turning through the module's own musical steps (0, 1, 3, 4, 7, 12, 24 semitones and their negatives,
